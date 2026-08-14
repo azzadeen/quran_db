@@ -39,6 +39,41 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
+def get_ayah_details(cursor, s, a):
+    """Helper to fetch full details of a specific surah and ayah."""
+    words_in_ayah = cursor.execute(
+        "SELECT id, surah, ayah, word_num, word_text, source_word, wazn, meaning "
+        "FROM words WHERE surah = ? AND ayah = ? ORDER BY word_num ASC",
+        (s, a)
+    ).fetchall()
+
+    if not words_in_ayah:
+        return None
+
+    assigned_topics = cursor.execute(
+        "SELECT topic_id FROM ayah_topics WHERE surah = ? AND ayah = ?",
+        (s, a)
+    ).fetchall()
+
+    # Fetch plain text with no diacritics from verses_clean
+    clean_row = cursor.execute(
+        "SELECT text_clean FROM verses_clean WHERE sura_id = ? AND aya_id = ?",
+        (s, a)
+    ).fetchone()
+
+    clean_text = clean_row['text_clean'] if clean_row else ""
+    full_ayah = " ".join([w['word_text'] for w in words_in_ayah])
+
+    return {
+        'surah': s,
+        'surah_name': SURAH_NAMES.get(s, f"سورة {s}"),
+        'ayah': a,
+        'full_text': full_ayah,
+        'clean_text': clean_text,
+        'assigned_topic_ids': [t['topic_id'] for t in assigned_topics],
+        'words': [dict(w) for w in words_in_ayah]
+    }
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -67,6 +102,24 @@ def add_topic():
     conn.commit()
     conn.close()
     return jsonify({"success": True})
+
+@app.route('/api/ayah', methods=['GET'])
+def get_single_ayah():
+    try:
+        s = int(request.args.get('surah'))
+        a = int(request.args.get('ayah'))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'Invalid surah or ayah parameter'}), 400
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    ayah_data = get_ayah_details(cursor, s, a)
+    conn.close()
+
+    if not ayah_data:
+        return jsonify({'error': 'Ayah not found'}), 440
+
+    return jsonify(ayah_data)
 
 @app.route('/api/search', methods=['GET'])
 def search():
@@ -119,40 +172,18 @@ def search():
 
     if not matching_ayahs:
         conn.close()
-        return jsonify({'results': []})
-    # Count total matched verses before slicing
+        return jsonify({'total_found': 0, 'results': []})
+
     total_found = len(matching_ayahs)
-    
-    # Cap the list for frontend rendering
-    matching_ayahs = matching_ayahs[:100]
+    matching_ayahs = matching_ayahs[:500]
     results = []
 
     for row in matching_ayahs:
-        s, a = row['surah'], row['ayah']
-        
-        words_in_ayah = cursor.execute(
-            "SELECT id, surah, ayah, word_num, word_text, source_word, wazn, meaning "
-            "FROM words WHERE surah = ? AND ayah = ? ORDER BY word_num ASC",
-            (s, a)
-        ).fetchall()
+        ayah_data = get_ayah_details(cursor, row['surah'], row['ayah'])
+        if ayah_data:
+            results.append(ayah_data)
 
-        assigned_topics = cursor.execute(
-            "SELECT topic_id FROM ayah_topics WHERE surah = ? AND ayah = ?",
-            (s, a)
-        ).fetchall()
-
-        full_ayah = " ".join([w['word_text'] for w in words_in_ayah])
-
-        results.append({
-            'surah': s,
-            'surah_name': SURAH_NAMES.get(s, f"سورة {s}"),
-            'ayah': a,
-            'full_text': full_ayah,
-            'assigned_topic_ids': [t['topic_id'] for t in assigned_topics],
-            'words': [dict(w) for w in words_in_ayah]
-        })
     conn.close()
-    # Return both total_found and the results array
     return jsonify({
         'total_found': total_found,
         'results': results

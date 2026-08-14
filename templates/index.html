@@ -57,6 +57,11 @@
         
         .toggle-icon::before { content: "▼"; display: inline-block; transition: transform 0.2s; margin-left: 8px; font-size: 0.8rem; }
         details[open] .toggle-icon::before { transform: rotate(-180deg); }
+
+        .nav-arrow-btn {
+            min-width: 42px;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body class="container py-4">
@@ -82,7 +87,6 @@
         </div>
     </div>
 
-
     <div id="results-container"></div>
 
     <script>
@@ -96,7 +100,6 @@
             const res = await fetch('/api/topics');
             allTopics = await res.json();
         }
-
 
         async function doSearch() {
             const col = document.getElementById('search-column').value;
@@ -129,7 +132,6 @@
                 </div>
             `;
 
-            // Render stats followed by the ayah cards
             container.innerHTML = statsHtml + data.results.map(r => renderAyahCard(r)).join('');
         }
 
@@ -168,6 +170,30 @@
                         </summary>
                         
                         <div class="card-body">
+                            <!-- Plain Text Row (verses_clean) -->
+                            <div class="alert alert-light border mb-3 py-2 text-dark">
+                                <strong class="text-secondary small d-block mb-1">النص المبسط (بدون تشكيل):</strong>
+                                <span class="quran-text">${r.clean_text || '—'} (${r.ayah})</span>
+                            </div>
+
+                            <!-- Navigation Bar for Previous / Next Ayah -->
+                            <div class="d-flex justify-content-between align-items-center bg-light border rounded p-2 mb-3">
+                                <button class="btn btn-outline-primary btn-sm nav-arrow-btn" 
+                                        title="الآية السابقة"
+                                        onclick="navigateAyah(${r.surah}, ${r.ayah - 1}, ${r.surah}, ${r.ayah})">
+                                    →
+                                </button>
+                                <div class="text-center px-2">
+                                    <span class="fw-bold text-secondary small">التصفح: </span>
+                                    <span class="quran-text px-2">${r.full_text} (${r.ayah})</span>
+                                </div>
+                                <button class="btn btn-outline-primary btn-sm nav-arrow-btn" 
+                                        title="الآية التالية"
+                                        onclick="navigateAyah(${r.surah}, ${r.ayah + 1}, ${r.surah}, ${r.ayah})">
+                                    ←
+                                </button>
+                            </div>
+
                             <!-- Interactive Topic Tags -->
                             <div class="mb-3 p-2 bg-light rounded border">
                                 <small class="text-muted d-block mb-2 fw-bold">مواضيع الآية (انقر للربط/الإلغاء):</small>
@@ -196,6 +222,24 @@
                     </details>
                 </div>
             `;
+        }
+
+        async function navigateAyah(targetSurah, targetAyah, currentSurah, currentAyah) {
+            if (targetAyah < 1) return;
+
+            const res = await fetch(`/api/ayah?surah=${targetSurah}&ayah=${targetAyah}`);
+            if (!res.ok) {
+                alert('لا توجد آية بهذا الرقم في هذه السورة.');
+                return;
+            }
+
+            const data = await res.json();
+            const card = document.getElementById(`ayah-card-${currentSurah}-${currentAyah}`);
+            
+            // Replace existing card with new ayah data while keeping order
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = renderAyahCard(data);
+            card.replaceWith(tempDiv.firstElementChild);
         }
 
         async function toggleAyahTopic(surah, ayah, topicId, element) {
