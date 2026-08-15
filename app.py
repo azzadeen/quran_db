@@ -39,7 +39,7 @@ def get_db_connection():
     return conn
 
 def get_related_ayahs_chain(cursor, s, a):
-    """Finds the entire contiguous chain of connected verses across current, preceding, and succeeding ayahs."""
+    """Finds the entire contiguous chain of connected verses along with their assigned topic names."""
     linked_set = set()
     rows = cursor.execute("SELECT ayah FROM ayah_relations WHERE surah = ?", (s,)).fetchall()
     for r in rows:
@@ -70,13 +70,22 @@ def get_related_ayahs_chain(cursor, s, a):
             (s, cur_a)
         ).fetchall()
         
+        # Retrieve topic names assigned to this verse
+        topics = cursor.execute(
+            "SELECT t.name FROM topics t "
+            "JOIN ayah_topics at ON t.id = at.topic_id "
+            "WHERE at.surah = ? AND at.ayah = ? ORDER BY t.name ASC",
+            (s, cur_a)
+        ).fetchall()
+
         full_text = " ".join([w['word_text'] for w in words])
         clean_text = clean_row['text_clean'] if clean_row else full_text
 
         related.append({
             'ayah': cur_a,
             'full_text': full_text,
-            'clean_text': clean_text
+            'clean_text': clean_text,
+            'topics': [t['name'] for t in topics]
         })
 
     return related
