@@ -1,9 +1,12 @@
+
 import sqlite3
 import re
 from flask import Flask, render_template, request, jsonify
 
 app = Flask(__name__)
-DB_NAME = "quran_corpus.db"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_NAME = os.path.join(BASE_DIR, "quran_corpus.db")
+#DB_NAME = "quran_corpus.db"
 
 SURAH_NAMES = {
     1: "الفاتحة", 2: "البقرة", 3: "آل عمران", 4: "النساء", 5: "المائدة", 6: "الأنعام", 7: "الأعراف", 8: "الأنفال", 9: "التوبة", 10: "يونس",
@@ -21,7 +24,6 @@ SURAH_NAMES = {
 }
 
 def remove_diacritics(text):
-    """Normalizes Arabic text input by removing Tashkeel, Tatweel, and standardizing Alifs/Yaa/Taa Marbouta."""
     if not text:
         return ""
     text = re.sub(r'[\u064B-\u065F\u0670\u0640]', '', text)
@@ -36,8 +38,50 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
+def get_related_ayahs_chain(cursor, s, a):
+    """Finds the entire contiguous chain of connected verses across current, preceding, and succeeding ayahs."""
+    linked_set = set()
+    rows = cursor.execute("SELECT ayah FROM ayah_relations WHERE surah = ?", (s,)).fetchall()
+    for r in rows:
+        linked_set.add(r['ayah'])
+
+    # Find start boundary
+    start_a = a
+    while start_a in linked_set:
+        start_a -= 1
+
+    # Find end boundary
+    end_a = a
+    while (end_a + 1) in linked_set:
+        end_a += 1
+
+    # If no links surrounding it, return empty list
+    if start_a == end_a:
+        return []
+
+    related = []
+    for cur_a in range(start_a, end_a + 1):
+        clean_row = cursor.execute(
+            "SELECT text_clean FROM verses_clean WHERE sura_id = ? AND aya_id = ?",
+            (s, cur_a)
+        ).fetchone()
+        words = cursor.execute(
+            "SELECT word_text FROM words WHERE surah = ? AND ayah = ? ORDER BY word_num ASC",
+            (s, cur_a)
+        ).fetchall()
+        
+        full_text = " ".join([w['word_text'] for w in words])
+        clean_text = clean_row['text_clean'] if clean_row else full_text
+
+        related.append({
+            'ayah': cur_a,
+            'full_text': full_text,
+            'clean_text': clean_text
+        })
+
+    return related
+
 def get_ayah_details(cursor, s, a):
-    """Helper to fetch full details of a specific surah and ayah."""
     words_in_ayah = cursor.execute(
         "SELECT id, surah, ayah, word_num, word_text, source_word, wazn, meaning "
         "FROM words WHERE surah = ? AND ayah = ? ORDER BY word_num ASC",
@@ -62,6 +106,13 @@ def get_ayah_details(cursor, s, a):
         (s, a)
     ).fetchall()
 
+    rel_exists = cursor.execute(
+        "SELECT 1 FROM ayah_relations WHERE surah = ? AND ayah = ?",
+        (s, a)
+    ).fetchone()
+
+    related_chain = get_related_ayahs_chain(cursor, s, a)
+
     clean_text = clean_row['text_clean'] if clean_row else ""
     full_ayah = " ".join([w['word_text'] for w in words_in_ayah])
 
@@ -71,6 +122,8 @@ def get_ayah_details(cursor, s, a):
         'ayah': a,
         'full_text': full_ayah,
         'clean_text': clean_text,
+        'is_related_to_prev': True if rel_exists else False,
+        'related_ayahs': related_chain,
         'assigned_topic_ids': [t['topic_id'] for t in assigned_topics],
         'notes': [dict(n) for n in notes],
         'words': [dict(w) for w in words_in_ayah]
@@ -190,6 +243,32 @@ def search():
         'total_found': total_found,
         'results': results
     })
+
+@app.route('/api/toggle_ayah_relation', methods=['POST'])
+def toggle_ayah_relation():
+    data = request.json
+    surah = data.get('surah')
+    ayah = data.get('ayah')
+    is_related = data.get('is_related', False)
+
+    if not surah or not ayah:
+        return jsonify({'error': 'Surah and ayah are required'}), 400
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    if is_related:
+        cursor.execute("INSERT OR IGNORE INTO ayah_relations (surah, ayah) VALUES (?, ?)", (surah, ayah))
+    else:
+        cursor.execute("DELETE FROM ayah_relations WHERE surah = ? AND ayah = ?", (surah, ayah))
+
+    conn.commit()
+    
+    # Return updated ayah details so client UI updates all related rows instantly
+    updated_details = get_ayah_details(cursor, surah, ayah)
+    conn.close()
+
+    return jsonify({'status': 'success', 'data': updated_details})
 
 @app.route('/api/add_ayah_note', methods=['POST'])
 def add_ayah_note():

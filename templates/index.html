@@ -159,6 +159,13 @@
                 </li>
             `).join('');
 
+            const relatedAyahsHtml = (r.related_ayahs || []).map(rel => `
+                <div class="p-2 border-bottom bg-white rounded mb-1">
+                    <span class="badge bg-primary me-2">آية ${rel.ayah}</span>
+                    <span class="quran-text">${rel.full_text}</span>
+                </div>
+            `).join('');
+
             const rows = r.words.map(w => `
                 <tr>
                     <td class="text-muted small">${w.word_num}</td>
@@ -187,8 +194,8 @@
                                 <span class="quran-text">${r.clean_text || '—'} (${r.ayah})</span>
                             </div>
 
-                            <!-- Navigation Bar for Previous / Next Ayah -->
-                            <div class="d-flex justify-content-between align-items-center bg-light border rounded p-2 mb-3">
+                            <!-- Navigation Bar for Previous / Next Ayah & Related Checkbox -->
+                            <div class="d-flex justify-content-between align-items-center bg-light border rounded p-2 mb-3 flex-wrap">
                                 <button class="btn btn-outline-primary btn-sm nav-arrow-btn" 
                                         title="الآية السابقة"
                                         onclick="navigateAyah(${r.surah}, ${r.ayah - 1}, ${r.surah}, ${r.ayah})">
@@ -203,6 +210,16 @@
                                         onclick="navigateAyah(${r.surah}, ${r.ayah + 1}, ${r.surah}, ${r.ayah})">
                                     ←
                                 </button>
+                                <div class="w-100 border-top mt-2 pt-2 d-flex justify-content-center">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="rel-check-${r.surah}-${r.ayah}" 
+                                               ${r.is_related_to_prev ? 'checked' : ''} 
+                                               onchange="toggleRelation(${r.surah}, ${r.ayah}, this.checked)">
+                                        <label class="form-check-label fw-bold text-dark" for="rel-check-${r.surah}-${r.ayah}">
+                                            مرتبطة بالآية السابقة (${r.ayah - 1})
+                                        </label>
+                                    </div>
+                                </div>
                             </div>
 
                             <!-- Interactive Topic Tags -->
@@ -225,6 +242,16 @@
                                 </div>
                             </div>
 
+                            <!-- Connected Related Ayahs Block -->
+                            ${(r.related_ayahs && r.related_ayahs.length > 0) ? `
+                                <div class="mb-3 p-3 bg-warning-subtle border border-warning rounded">
+                                    <label class="fw-bold text-dark mb-2 d-block">🔗 الآيات المرتبطة ببعضها (سياق متصل):</label>
+                                    <div>
+                                        ${relatedAyahsHtml}
+                                    </div>
+                                </div>
+                            ` : ''}
+
                             <!-- Words Table -->
                             <div class="table-responsive">
                                 <table class="table table-sm table-bordered align-middle text-center mb-0">
@@ -246,6 +273,23 @@
                     </details>
                 </div>
             `;
+        }
+
+        async function toggleRelation(surah, ayah, isRelated) {
+            const res = await fetch('/api/toggle_ayah_relation', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ surah, ayah, is_related: isRelated })
+            });
+
+            if (res.ok) {
+                const resData = await res.json();
+                const card = document.getElementById(`ayah-card-${surah}-${ayah}`);
+                
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = renderAyahCard(resData.data);
+                card.replaceWith(tempDiv.firstElementChild);
+            }
         }
 
         async function addNote(surah, ayah) {
@@ -279,7 +323,7 @@
         }
 
         async function deleteNote(noteId) {
-            if (!confirm('هل انت متاكد من حذف هذه الملاحظة؟')) return;
+            if (!confirm('هل أنت تأكد من حذف هذه الملاحظة؟')) return;
 
             const res = await fetch('/api/delete_ayah_note', {
                 method: 'POST',
