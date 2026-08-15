@@ -1,12 +1,9 @@
-import os
 import sqlite3
 import re
 from flask import Flask, render_template, request, jsonify
 
 app = Flask(__name__)
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_NAME = os.path.join(BASE_DIR, "quran_corpus.db")
-#DB_NAME = "quran_corpus.db"
+DB_NAME = "quran_corpus.db"
 
 SURAH_NAMES = {
     1: "الفاتحة", 2: "البقرة", 3: "آل عمران", 4: "النساء", 5: "المائدة", 6: "الأنعام", 7: "الأعراف", 8: "الأنفال", 9: "التوبة", 10: "يونس",
@@ -55,11 +52,15 @@ def get_ayah_details(cursor, s, a):
         (s, a)
     ).fetchall()
 
-    # Fetch plain text with no diacritics from verses_clean
     clean_row = cursor.execute(
         "SELECT text_clean FROM verses_clean WHERE sura_id = ? AND aya_id = ?",
         (s, a)
     ).fetchone()
+
+    notes = cursor.execute(
+        "SELECT id, note_text, created_at FROM ayah_notes WHERE surah = ? AND ayah = ? ORDER BY id ASC",
+        (s, a)
+    ).fetchall()
 
     clean_text = clean_row['text_clean'] if clean_row else ""
     full_ayah = " ".join([w['word_text'] for w in words_in_ayah])
@@ -71,6 +72,7 @@ def get_ayah_details(cursor, s, a):
         'full_text': full_ayah,
         'clean_text': clean_text,
         'assigned_topic_ids': [t['topic_id'] for t in assigned_topics],
+        'notes': [dict(n) for n in notes],
         'words': [dict(w) for w in words_in_ayah]
     }
 
@@ -117,7 +119,7 @@ def get_single_ayah():
     conn.close()
 
     if not ayah_data:
-        return jsonify({'error': 'Ayah not found'}), 440
+        return jsonify({'error': 'Ayah not found'}), 404
 
     return jsonify(ayah_data)
 
@@ -188,6 +190,41 @@ def search():
         'total_found': total_found,
         'results': results
     })
+
+@app.route('/api/add_ayah_note', methods=['POST'])
+def add_ayah_note():
+    data = request.json
+    surah = data.get('surah')
+    ayah = data.get('ayah')
+    note_text = data.get('note_text', '').strip()
+
+    if not surah or not ayah or not note_text:
+        return jsonify({'error': 'Surah, ayah, and note_text are required'}), 400
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO ayah_notes (surah, ayah, note_text) VALUES (?, ?, ?)", (surah, ayah, note_text))
+    note_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+
+    return jsonify({'status': 'success', 'id': note_id, 'note_text': note_text})
+
+@app.route('/api/delete_ayah_note', methods=['POST'])
+def delete_ayah_note():
+    data = request.json
+    note_id = data.get('id')
+
+    if not note_id:
+        return jsonify({'error': 'Note ID is required'}), 400
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM ayah_notes WHERE id = ?", (note_id,))
+    conn.commit()
+    conn.close()
+
+    return jsonify({'status': 'success'})
 
 @app.route('/api/update_ayah_topics', methods=['POST'])
 def update_ayah_topics():

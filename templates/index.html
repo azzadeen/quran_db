@@ -62,6 +62,11 @@
             min-width: 42px;
             font-weight: bold;
         }
+        
+        .note-item {
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
     </style>
 </head>
 <body class="container py-4">
@@ -117,7 +122,6 @@
                 return;
             }
 
-            // Build Stats Banner
             const total = data.total_found;
             const shown = data.results.length;
             
@@ -147,6 +151,13 @@
                     </span>
                 `;
             }).join('');
+
+            const notesList = (r.notes || []).map(n => `
+                <li class="list-group-item d-flex justify-content-between align-items-start bg-white" id="note-item-${n.id}">
+                    <div class="note-item me-2 text-wrap">${n.note_text}</div>
+                    <button class="btn btn-sm btn-outline-danger py-0 px-2 ms-2" onclick="deleteNote(${n.id})">حذف</button>
+                </li>
+            `).join('');
 
             const rows = r.words.map(w => `
                 <tr>
@@ -202,6 +213,19 @@
                                 </div>
                             </div>
 
+                            <!-- Multiple Notes Row -->
+                            <div class="mb-3 p-3 bg-light rounded border">
+                                <label class="fw-bold text-secondary mb-2 d-block">📝 الملاحظات الخاصة بالآية:</label>
+                                <ul class="list-group mb-2" id="notes-list-${r.surah}-${r.ayah}">
+                                    ${notesList.length > 0 ? notesList : '<li class="list-group-item text-muted small no-notes-placeholder">لا توجد ملاحظات لهذه الآية بعد.</li>'}
+                                </ul>
+                                <div class="input-group">
+                                    <textarea class="form-control" id="note-input-${r.surah}-${r.ayah}" rows="2" placeholder="أضف ملاحظة طويلة أو تعليقًا جديدًا..."></textarea>
+                                    <button class="btn btn-success" onclick="addNote(${r.surah}, ${r.ayah})">إضافة ملاحظة</button>
+                                </div>
+                            </div>
+
+                            <!-- Words Table -->
                             <div class="table-responsive">
                                 <table class="table table-sm table-bordered align-middle text-center mb-0">
                                     <thead class="table-light">
@@ -224,6 +248,51 @@
             `;
         }
 
+        async function addNote(surah, ayah) {
+            const textarea = document.getElementById(`note-input-${surah}-${ayah}`);
+            const text = textarea.value.trim();
+            if (!text) return;
+
+            const res = await fetch('/api/add_ayah_note', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ surah, ayah, note_text: text })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                textarea.value = '';
+
+                const notesList = document.getElementById(`notes-list-${surah}-${ayah}`);
+                const placeholder = notesList.querySelector('.no-notes-placeholder');
+                if (placeholder) placeholder.remove();
+
+                const newLi = document.createElement('li');
+                newLi.className = 'list-group-item d-flex justify-content-between align-items-start bg-white';
+                newLi.id = `note-item-${data.id}`;
+                newLi.innerHTML = `
+                    <div class="note-item me-2 text-wrap">${data.note_text}</div>
+                    <button class="btn btn-sm btn-outline-danger py-0 px-2 ms-2" onclick="deleteNote(${data.id})">حذف</button>
+                `;
+                notesList.appendChild(newLi);
+            }
+        }
+
+        async function deleteNote(noteId) {
+            if (!confirm('هل انت متاكد من حذف هذه الملاحظة؟')) return;
+
+            const res = await fetch('/api/delete_ayah_note', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ id: noteId })
+            });
+
+            if (res.ok) {
+                const elem = document.getElementById(`note-item-${noteId}`);
+                if (elem) elem.remove();
+            }
+        }
+
         async function navigateAyah(targetSurah, targetAyah, currentSurah, currentAyah) {
             if (targetAyah < 1) return;
 
@@ -236,7 +305,6 @@
             const data = await res.json();
             const card = document.getElementById(`ayah-card-${currentSurah}-${currentAyah}`);
             
-            // Replace existing card with new ayah data while keeping order
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = renderAyahCard(data);
             card.replaceWith(tempDiv.firstElementChild);
