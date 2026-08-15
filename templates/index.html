@@ -10,7 +10,7 @@
         .quran-text { font-family: 'Amiri', 'Traditional Arabic', serif; font-size: 1.25rem; }
         .editable { background-color: #ffffff; cursor: pointer; transition: background-color 0.2s; }
         .editable:hover, .editable:focus { background-color: #fff3cd !important; outline: none; }
-        /* Fix RTL input-group border radiuses */
+
         .search-group-rtl .form-select {
             max-width: 180px;
             border-top-left-radius: 0 !important;
@@ -27,9 +27,9 @@
             border-top-right-radius: 0 !important;
             border-bottom-right-radius: 0 !important;
             border-top-left-radius: 0.5rem !important;
-            border-bottom-left-radius: 0.5rem !important;
+            border-bottom-left-radius: 0 !important;
         }
-        /* Topic Badges/Tags */
+
         .topic-tag {
             cursor: pointer;
             user-select: none;
@@ -47,7 +47,6 @@
             border: 1px solid #ced4da;
         }
 
-        /* Collapsible Details Styling */
         details.ayah-details summary { 
             list-style: none; 
             cursor: pointer; 
@@ -159,12 +158,23 @@
                 </li>
             `).join('');
 
-            const relatedAyahsHtml = (r.related_ayahs || []).map(rel => `
-                <div class="p-2 border-bottom bg-white rounded mb-1">
-                    <span class="badge bg-primary me-2">آية ${rel.ayah}</span>
-                    <span class="quran-text">${rel.full_text}</span>
-                </div>
-            `).join('');
+            const relatedAyahsHtml = (r.related_ayahs || []).map(rel => {
+                const relTopicBadges = (rel.topics && rel.topics.length > 0) 
+                    ? rel.topics.map(tName => `<span class="badge bg-secondary ms-1">${tName}</span>`).join('')
+                    : '<span class="badge bg-light text-dark ms-1">بدون موضوع</span>';
+
+                return `
+                    <div class="p-2 border-bottom bg-white rounded mb-1 d-flex flex-wrap justify-content-between align-items-center">
+                        <div>
+                            <span class="badge bg-primary me-2">آية ${rel.ayah}</span>
+                            <span class="quran-text">${rel.full_text}</span>
+                        </div>
+                        <div class="mt-1 mt-md-0">
+                            ${relTopicBadges}
+                        </div>
+                    </div>
+                `;
+            }).join('');
 
             const rows = r.words.map(w => `
                 <tr>
@@ -242,7 +252,7 @@
                                 </div>
                             </div>
 
-                            <!-- Connected Related Ayahs Block -->
+                            <!-- Connected Related Ayahs Block with Topics -->
                             ${(r.related_ayahs && r.related_ayahs.length > 0) ? `
                                 <div class="mb-3 p-3 bg-warning-subtle border border-warning rounded">
                                     <label class="fw-bold text-dark mb-2 d-block">🔗 الآيات المرتبطة ببعضها (سياق متصل):</label>
@@ -362,11 +372,20 @@
             const activeTags = card.querySelectorAll('.topic-tag.active');
             const topic_ids = Array.from(activeTags).map(tag => parseInt(tag.getAttribute('data-topic-id')));
 
-            await fetch('/api/update_ayah_topics', {
+            const res = await fetch('/api/update_ayah_topics', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ surah, ayah, topic_ids })
             });
+
+            if (res.ok) {
+                const resData = await res.json();
+                if (resData.data) {
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = renderAyahCard(resData.data);
+                    card.replaceWith(tempDiv.firstElementChild);
+                }
+            }
         }
 
         async function updateWordField(id, field, elem) {
