@@ -167,6 +167,43 @@ def add_topic():
     conn.close()
     return jsonify({"success": True})
 
+@app.route('/api/update_topic', methods=['POST'])
+def update_topic():
+    data = request.json
+    topic_id = data.get('id')
+    name = data.get('name', '').strip()
+
+    if not topic_id or not name:
+        return jsonify({"error": "Topic ID and new name are required"}), 400
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("UPDATE topics SET name = ? WHERE id = ?", (name, topic_id))
+        conn.commit()
+    except sqlite3.IntegrityError:
+        conn.close()
+        return jsonify({"error": "Topic name already exists"}), 400
+    conn.close()
+    return jsonify({"success": True})
+
+@app.route('/api/delete_topic', methods=['POST'])
+def delete_topic():
+    data = request.json
+    topic_id = data.get('id')
+
+    if not topic_id:
+        return jsonify({"error": "Topic ID is required"}), 400
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    # Explicitly clear links in ayah_topics and delete the topic
+    cursor.execute("DELETE FROM ayah_topics WHERE topic_id = ?", (topic_id,))
+    cursor.execute("DELETE FROM topics WHERE id = ?", (topic_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({"success": True})
+    
 @app.route('/api/ayah', methods=['GET'])
 def get_single_ayah():
     try:
