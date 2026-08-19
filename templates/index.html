@@ -99,7 +99,6 @@
         document.addEventListener('DOMContentLoaded', async () => {
             await loadTopics();
             
-            // Check for URL parameters (e.g., coming from clicking a topic tag in /topics)
             const urlParams = new URLSearchParams(window.location.search);
             const col = urlParams.get('column');
             const q = urlParams.get('query');
@@ -167,6 +166,18 @@
                     <div class="note-item me-2 text-wrap">${n.note_text}</div>
                     <button class="btn btn-sm btn-outline-danger py-0 px-2 ms-2" onclick="deleteNote(${n.id})">حذف</button>
                 </li>
+            `).join('');
+
+            // Bi-directional Custom Links rendering
+            const customLinksHtml = (r.custom_links || []).map(link => `
+                <div class="p-2 border-bottom bg-white rounded mb-2 d-flex flex-wrap justify-content-between align-items-center" id="custom-link-${link.link_id}">
+                    <div>
+                        <span class="badge bg-dark me-1">${link.linked_surah_name || 'سورة'} [${link.linked_surah}:${link.linked_ayah}]</span>
+                        <span class="quran-text me-2">${link.linked_text}</span>
+                        ${link.link_comment ? `<div class="text-muted small mt-1">💡 <em>${link.link_comment}</em></div>` : ''}
+                    </div>
+                    <button class="btn btn-sm btn-outline-danger py-0 px-2 ms-2" onclick="deleteCustomLink(${link.link_id}, ${r.surah}, ${r.ayah})">حذف الربط</button>
+                </div>
             `).join('');
 
             const relatedAyahsHtml = (r.related_ayahs || []).map(rel => {
@@ -251,6 +262,28 @@
                                 </div>
                             </div>
 
+                            <!-- Bi-directional Custom Links Section -->
+                            <div class="mb-3 p-3 bg-info-subtle border border-info rounded">
+                                <label class="fw-bold text-dark mb-2 d-block">🔗 الروابط المخصصة (تبادلية):</label>
+                                <div id="custom-links-container-${r.surah}-${r.ayah}">
+                                    ${customLinksHtml.length > 0 ? customLinksHtml : '<div class="text-muted small mb-2 no-links-placeholder">لا توجد روابط مخصصة لهذه الآية.</div>'}
+                                </div>
+                                <div class="row g-2 mt-2">
+                                    <div class="col-md-3">
+                                        <input type="number" class="form-control form-control-sm" id="link-target-surah-${r.surah}-${r.ayah}" placeholder="رقم السورة Target">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <input type="number" class="form-control form-control-sm" id="link-target-ayah-${r.surah}-${r.ayah}" placeholder="رقم الآية Target">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <input type="text" class="form-control form-control-sm" id="link-comment-${r.surah}-${r.ayah}" placeholder="ملاحظة أو سبب الربط (اختياري)">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <button class="btn btn-info btn-sm w-100 text-white fw-bold" onclick="addCustomLink(${r.surah}, ${r.ayah})">إضافة رابط</button>
+                                    </div>
+                                </div>
+                            </div>
+
                             <!-- Multiple Notes Row -->
                             <div class="mb-3 p-3 bg-light rounded border">
                                 <label class="fw-bold text-secondary mb-2 d-block">📝 الملاحظات الخاصة بالآية:</label>
@@ -266,7 +299,7 @@
                             <!-- Connected Related Ayahs Block -->
                             ${(r.related_ayahs && r.related_ayahs.length > 0) ? `
                                 <div class="mb-3 p-3 bg-warning-subtle border border-warning rounded">
-                                    <label class="fw-bold text-dark mb-2 d-block">🔗 الآيات المرتبطة ببعضها (سياق متصل):</label>
+                                    <label class="fw-bold text-dark mb-2 d-block">🔗 الآيات المتتابعة المباشرة:</label>
                                     <div>
                                         ${relatedAyahsHtml}
                                     </div>
@@ -296,25 +329,82 @@
             `;
         }
 
-        async function toggleRelation(surah, ayah, isRelated) {
-		const card = document.getElementById(`ayah-card-${surah}-${ayah}`);
-    		const wasOpen = card ? card.querySelector('details')?.open : false;
-		const res = await fetch('/api/toggle_ayah_relation', {
-               	 method: 'POST',
-               	 headers: {'Content-Type': 'application/json'},
-               	 body: JSON.stringify({ surah, ayah, is_related: isRelated })
+        async function addCustomLink(surah, ayah) {
+            const targetSurah = document.getElementById(`link-target-surah-${surah}-${ayah}`).value;
+            const targetAyah = document.getElementById(`link-target-ayah-${surah}-${ayah}`).value;
+            const comment = document.getElementById(`link-comment-${surah}-${ayah}`).value.trim();
+
+            if (!targetSurah || !targetAyah) {
+                alert('يرجى إدخال رقم السورة ورقم الآية المستهدفة.');
+                return;
+            }
+
+            const card = document.getElementById(`ayah-card-${surah}-${ayah}`);
+            const wasOpen = card ? card.querySelector('details')?.open : false;
+
+            const res = await fetch('/api/add_custom_link', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    source_surah: surah,
+                    source_ayah: ayah,
+                    target_surah: parseInt(targetSurah),
+                    target_ayah: parseInt(targetAyah),
+                    link_comment: comment
+                })
             });
 
             if (res.ok) {
                 const resData = await res.json();
-                const card = document.getElementById(`ayah-card-${surah}-${ayah}`);
-                
+                if (resData.data) {
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = renderAyahCard(resData.data);
+                    if (wasOpen) tempDiv.querySelector('details').open = true;
+                    card.replaceWith(tempDiv.firstElementChild);
+                }
+            } else {
+                alert('حدث خطأ أثناء إضافة الرابط. تأكد من صحة الآية المستهدفة.');
+            }
+        }
+
+        async function deleteCustomLink(linkId, currentSurah, currentAyah) {
+            if (!confirm('هل أنت تأكد من حذف هذا الرابط؟')) return;
+
+            const card = document.getElementById(`ayah-card-${currentSurah}-${currentAyah}`);
+            const wasOpen = card ? card.querySelector('details')?.open : false;
+
+            const res = await fetch('/api/delete_custom_link', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ link_id: linkId, current_surah: currentSurah, current_ayah: currentAyah })
+            });
+
+            if (res.ok) {
+                const resData = await res.json();
+                if (resData.data) {
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = renderAyahCard(resData.data);
+                    if (wasOpen) tempDiv.querySelector('details').open = true;
+                    card.replaceWith(tempDiv.firstElementChild);
+                }
+            }
+        }
+
+        async function toggleRelation(surah, ayah, isRelated) {
+            const card = document.getElementById(`ayah-card-${surah}-${ayah}`);
+            const wasOpen = card ? card.querySelector('details')?.open : false;
+            const res = await fetch('/api/toggle_ayah_relation', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ surah, ayah, is_related: isRelated })
+            });
+
+            if (res.ok) {
+                const resData = await res.json();
                 const tempDiv = document.createElement('div');
                 tempDiv.innerHTML = renderAyahCard(resData.data);
-		if (wasOpen) {
-			tempDiv.querySelector('details').open = true;
-		}
-		card.replaceWith(tempDiv.firstElementChild);
+                if (wasOpen) tempDiv.querySelector('details').open = true;
+                card.replaceWith(tempDiv.firstElementChild);
             }
         }
 
@@ -365,8 +455,8 @@
 
         async function navigateAyah(targetSurah, targetAyah, currentSurah, currentAyah) {
             if (targetAyah < 1) return;
-    	    const currentCard = document.getElementById(`ayah-card-${currentSurah}-${currentAyah}`);
-    	    const wasOpen = currentCard ? currentCard.querySelector('details')?.open : false;
+            const currentCard = document.getElementById(`ayah-card-${currentSurah}-${currentAyah}`);
+            const wasOpen = currentCard ? currentCard.querySelector('details')?.open : false;
 
             const res = await fetch(`/api/ayah?surah=${targetSurah}&ayah=${targetAyah}`);
             if (!res.ok) {
@@ -375,14 +465,10 @@
             }
 
             const data = await res.json();
-            const card = document.getElementById(`ayah-card-${currentSurah}-${currentAyah}`);
-            
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = renderAyahCard(data);
-  	    if (wasOpen) {
-        	tempDiv.querySelector('details').open = true;
-    	    }
-            card.replaceWith(tempDiv.firstElementChild);
+            if (wasOpen) tempDiv.querySelector('details').open = true;
+            currentCard.replaceWith(tempDiv.firstElementChild);
         }
 
         async function toggleAyahTopic(surah, ayah, topicId, element) {
