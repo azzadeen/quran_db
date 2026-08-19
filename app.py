@@ -6,7 +6,6 @@ from flask import Flask, render_template, request, jsonify
 app = Flask(__name__)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_NAME = os.path.join(BASE_DIR, "quran_corpus.db")
-#DB_NAME = "quran_corpus.db"
 
 SURAH_NAMES = {
     1: "الفاتحة", 2: "البقرة", 3: "آل عمران", 4: "النساء", 5: "المائدة", 6: "الأنعام", 7: "الأعراف", 8: "الأنفال", 9: "التوبة", 10: "يونس",
@@ -38,6 +37,42 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
+def get_custom_links_for_ayah(cursor, s, a):
+    """Retrieves bi-directional custom links for a specific ayah and formats linked text."""
+    query = '''
+        SELECT id, source_surah, source_ayah, target_surah, target_ayah, link_comment
+        FROM ayah_custom_links
+        WHERE (source_surah = ? AND source_ayah = ?)
+           OR (target_surah = ? AND target_ayah = ?)
+    '''
+    rows = cursor.execute(query, (s, a, s, a)).fetchall()
+    links = []
+
+    for r in rows:
+        # Determine linked target/source relative to current ayah
+        if r['source_surah'] == s and r['source_ayah'] == a:
+            l_surah, l_ayah = r['target_surah'], r['target_ayah']
+        else:
+            l_surah, l_ayah = r['source_surah'], r['source_ayah']
+
+        # Fetch text for the linked verse
+        words = cursor.execute(
+            "SELECT word_text FROM words WHERE surah = ? AND ayah = ? ORDER BY word_num ASC",
+            (l_surah, l_ayah)
+        ).fetchall()
+        linked_text = " ".join([w['word_text'] for w in words]) if words else ""
+
+        links.append({
+            'link_id': r['id'],
+            'linked_surah': l_surah,
+            'linked_surah_name': SURAH_NAMES.get(l_surah, f"سورة {l_surah}"),
+            'linked_ayah': l_ayah,
+            'linked_text': linked_text,
+            'link_comment': r['link_comment']
+        })
+
+    return links
+
 def get_related_ayahs_chain(cursor, s, a):
     """Finds the entire contiguous chain of connected verses along with their assigned topic names."""
     linked_set = set()
@@ -45,17 +80,14 @@ def get_related_ayahs_chain(cursor, s, a):
     for r in rows:
         linked_set.add(r['ayah'])
 
-    # Find start boundary
     start_a = a
     while start_a in linked_set:
         start_a -= 1
 
-    # Find end boundary
     end_a = a
     while (end_a + 1) in linked_set:
         end_a += 1
 
-    # If no links surrounding it, return empty list
     if start_a == end_a:
         return []
 
@@ -70,7 +102,6 @@ def get_related_ayahs_chain(cursor, s, a):
             (s, cur_a)
         ).fetchall()
         
-        # Retrieve topic names assigned to this verse
         topics = cursor.execute(
             "SELECT t.name FROM topics t "
             "JOIN ayah_topics at ON t.id = at.topic_id "
@@ -121,6 +152,7 @@ def get_ayah_details(cursor, s, a):
     ).fetchone()
 
     related_chain = get_related_ayahs_chain(cursor, s, a)
+    custom_links = get_custom_links_for_ayah(cursor, s, a)
 
     clean_text = clean_row['text_clean'] if clean_row else ""
     full_ayah = " ".join([w['word_text'] for w in words_in_ayah])
@@ -133,6 +165,7 @@ def get_ayah_details(cursor, s, a):
         'clean_text': clean_text,
         'is_related_to_prev': True if rel_exists else False,
         'related_ayahs': related_chain,
+        'custom_links': custom_links,
         'assigned_topic_ids': [t['topic_id'] for t in assigned_topics],
         'notes': [dict(n) for n in notes],
         'words': [dict(w) for w in words_in_ayah]
@@ -142,16 +175,16 @@ def get_ayah_details(cursor, s, a):
 def index():
     return render_template('index.html')
 
+@app.route('/topics')
+def topics_page():
+    return render_template('topics.html')
+
 @app.route('/api/topics', methods=['GET'])
 def get_topics():
     conn = get_db_connection()
     topics = conn.execute("SELECT id, name FROM topics ORDER BY name ASC").fetchall()
     conn.close()
     return jsonify([dict(t) for t in topics])
-
-@app.route('/topics')
-def topics_page():
-    return render_template('topics.html')
 
 @app.route('/api/add_topic', methods=['POST'])
 def add_topic():
@@ -197,13 +230,12 @@ def delete_topic():
 
     conn = get_db_connection()
     cursor = conn.cursor()
-    # Explicitly clear links in ayah_topics and delete the topic
     cursor.execute("DELETE FROM ayah_topics WHERE topic_id = ?", (topic_id,))
     cursor.execute("DELETE FROM topics WHERE id = ?", (topic_id,))
     conn.commit()
     conn.close()
     return jsonify({"success": True})
-    
+
 @app.route('/api/ayah', methods=['GET'])
 def get_single_ayah():
     try:
@@ -256,7 +288,6 @@ def search():
         clean_query = remove_diacritics(query)
         prefix = "" if clean_query.startswith(" ") else "%"
         suffix = "" if clean_query.endswith(" ") else "%"
-        
         search_term = clean_query.strip()
         
         if search_term:
@@ -290,12 +321,65 @@ def search():
         'results': results
     })
 
+@app.route('/api/add_custom_link', methods=['POST'])
+def add_custom_link():
+    data = request.json
+    s_surah = data.get('source_surah')
+    s_ayah = data.get('source_ayah')
+    t_surah = data.get('target_surah')
+    t_ayah = data.get('target_ayah')
+    comment = data.get('link_comment', '').strip()
+
+    if not all([s_surah, s_ayah, t_surah, t_ayah]):
+        return jsonify({'error': 'Missing required fields'}), 400
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Ensure target verse exists in words DB
+    target_exists = cursor.execute('SELECT 1 FROM words WHERE surah = ? AND ayah = ?', (t_surah, t_ayah)).fetchone()
+    if not target_exists:
+        conn.close()
+        return jsonify({'error': 'Target ayah does not exist'}), 404
+
+    cursor.execute('''
+        INSERT INTO ayah_custom_links (source_surah, source_ayah, target_surah, target_ayah, link_comment)
+        VALUES (?, ?, ?, ?, ?)
+    ''', (s_surah, s_ayah, t_surah, t_ayah, comment))
+
+    conn.commit()
+
+    # Return updated current ayah details for instantaneous UI re-rendering
+    updated_details = get_ayah_details(cursor, s_surah, s_ayah)
+    conn.close()
+
+    return jsonify({'status': 'success', 'data': updated_details})
+
+@app.route('/api/delete_custom_link', methods=['POST'])
+def delete_custom_link():
+    data = request.json
+    link_id = data.get('link_id')
+    c_surah = data.get('current_surah')
+    c_ayah = data.get('current_ayah')
+
+    if not link_id:
+        return jsonify({'error': 'Link ID is required'}), 400
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('DELETE FROM ayah_custom_links WHERE id = ?', (link_id,))
+    conn.commit()
+
+    # Return updated current ayah details for instantaneous UI re-rendering
+    updated_details = get_ayah_details(cursor, c_surah, c_ayah) if c_surah and c_ayah else None
+    conn.close()
+
+    return jsonify({'status': 'success', 'data': updated_details})
+
 @app.route('/api/toggle_ayah_relation', methods=['POST'])
 def toggle_ayah_relation():
     data = request.json
-    surah = data.get('surah')
-    ayah = data.get('ayah')
-    is_related = data.get('is_related', False)
+    surah, ayah, is_related = data.get('surah'), data.get('ayah'), data.get('is_related', False)
 
     if not surah or not ayah:
         return jsonify({'error': 'Surah and ayah are required'}), 400
@@ -309,8 +393,6 @@ def toggle_ayah_relation():
         cursor.execute("DELETE FROM ayah_relations WHERE surah = ? AND ayah = ?", (surah, ayah))
 
     conn.commit()
-    
-    # Return updated ayah details so client UI updates all related rows instantly
     updated_details = get_ayah_details(cursor, surah, ayah)
     conn.close()
 
@@ -319,9 +401,7 @@ def toggle_ayah_relation():
 @app.route('/api/add_ayah_note', methods=['POST'])
 def add_ayah_note():
     data = request.json
-    surah = data.get('surah')
-    ayah = data.get('ayah')
-    note_text = data.get('note_text', '').strip()
+    surah, ayah, note_text = data.get('surah'), data.get('ayah'), data.get('note_text', '').strip()
 
     if not surah or not ayah or not note_text:
         return jsonify({'error': 'Surah, ayah, and note_text are required'}), 400
@@ -362,8 +442,11 @@ def update_ayah_topics():
     for t_id in topic_ids:
         cursor.execute("INSERT INTO ayah_topics (surah, ayah, topic_id) VALUES (?, ?, ?)", (surah, ayah, t_id))
     conn.commit()
+
+    updated_details = get_ayah_details(cursor, surah, ayah)
     conn.close()
-    return jsonify({'status': 'success'})
+
+    return jsonify({'status': 'success', 'data': updated_details})
 
 @app.route('/api/update_word', methods=['POST'])
 def update_word():
