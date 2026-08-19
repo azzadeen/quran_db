@@ -199,7 +199,7 @@
 
             return `
                 <div class="card mb-3 shadow-sm" id="ayah-card-${r.surah}-${r.ayah}">
-                    <details class="ayah-details" open>
+                    <details class="ayah-details">
                         <summary class="card-header bg-light d-flex justify-content-between align-items-center py-3">
                             <div>
                                 <span class="toggle-icon text-muted"></span>
@@ -297,10 +297,12 @@
         }
 
         async function toggleRelation(surah, ayah, isRelated) {
-            const res = await fetch('/api/toggle_ayah_relation', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ surah, ayah, is_related: isRelated })
+		const card = document.getElementById(`ayah-card-${surah}-${ayah}`);
+    		const wasOpen = card ? card.querySelector('details')?.open : false;
+		const res = await fetch('/api/toggle_ayah_relation', {
+               	 method: 'POST',
+               	 headers: {'Content-Type': 'application/json'},
+               	 body: JSON.stringify({ surah, ayah, is_related: isRelated })
             });
 
             if (res.ok) {
@@ -309,7 +311,10 @@
                 
                 const tempDiv = document.createElement('div');
                 tempDiv.innerHTML = renderAyahCard(resData.data);
-                card.replaceWith(tempDiv.firstElementChild);
+		if (wasOpen) {
+			tempDiv.querySelector('details').open = true;
+		}
+		card.replaceWith(tempDiv.firstElementChild);
             }
         }
 
@@ -360,6 +365,8 @@
 
         async function navigateAyah(targetSurah, targetAyah, currentSurah, currentAyah) {
             if (targetAyah < 1) return;
+    	    const currentCard = document.getElementById(`ayah-card-${currentSurah}-${currentAyah}`);
+    	    const wasOpen = currentCard ? currentCard.querySelector('details')?.open : false;
 
             const res = await fetch(`/api/ayah?surah=${targetSurah}&ayah=${targetAyah}`);
             if (!res.ok) {
@@ -372,6 +379,9 @@
             
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = renderAyahCard(data);
+  	    if (wasOpen) {
+        	tempDiv.querySelector('details').open = true;
+    	    }
             card.replaceWith(tempDiv.firstElementChild);
         }
 
