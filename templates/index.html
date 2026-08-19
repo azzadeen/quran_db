@@ -656,6 +656,9 @@
             element.classList.toggle('inactive');
 
             const card = document.getElementById(`ayah-card-${surah}-${ayah}`);
+            
+            const wasOpen = card ? card.querySelector('details')?.open : false;
+            
             const activeTags = card.querySelectorAll('.topic-tag.active');
             const topic_ids = Array.from(activeTags).map(tag => parseInt(tag.getAttribute('data-topic-id')));
 
@@ -670,6 +673,9 @@
                 if (resData.data) {
                     const tempDiv = document.createElement('div');
                     tempDiv.innerHTML = renderAyahCard(resData.data);
+                    if (wasOpen) {
+                        tempDiv.querySelector('details').open = true;
+                    }
                     card.replaceWith(tempDiv.firstElementChild);
                 }
             }
