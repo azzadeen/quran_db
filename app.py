@@ -479,37 +479,46 @@ def get_page_data():
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Update this query once page numbers are in quran_corpus.db
+        # Query words belonging to the requested page
         query = """
-            SELECT a.surah, a.ayah, a.full_text, a.page
-            FROM ayahs a
-            WHERE a.page = ?
-            ORDER BY a.surah ASC, a.ayah ASC
+            SELECT surah, ayah, word_text
+            FROM words
+            WHERE page = ?
+            ORDER BY surah ASC, ayah ASC, word_num ASC
         """
-        cursor.execute(query, (page_num,))
-        rows = cursor.fetchall()
+        rows = cursor.execute(query, (page_num,)).fetchall()
         conn.close()
 
         if not rows:
-            return jsonify({"error": f"No ayahs found for page {page_num}"}), 404
+            return jsonify({"error": f"No words found for page {page_num}"}), 404
 
-        ayahs_list = []
-        surah_names = []
+        # Group words by (surah, ayah)
+        ayahs_dict = {}
         for row in rows:
-            s_name = SURAH_NAMES.get(row['surah'], f"سورة {row['surah']}")
-            if s_name not in surah_names:
-                surah_names.append(s_name)
-                
+            key = (row['surah'], row['ayah'])
+            if key not in ayahs_dict:
+                ayahs_dict[key] = []
+            ayahs_dict[key].append(row['word_text'])
+
+        # Format output to match your frontend expectations
+        ayahs_list = []
+        surah_names_set = []
+
+        for (s, a), word_list in ayahs_dict.items():
+            s_name = SURAH_NAMES.get(s, f"سورة {s}")
+            if s_name not in surah_names_set:
+                surah_names_set.append(s_name)
+
             ayahs_list.append({
-                "surah": row['surah'],
-                "ayah": row['ayah'],
-                "full_text": row['full_text'],
+                "surah": s,
+                "ayah": a,
+                "full_text": " ".join(word_list),
                 "surah_name": s_name
             })
 
         return jsonify({
             "page": page_num,
-            "surahs": surah_names,
+            "surahs": surah_names_set,
             "ayahs": ayahs_list
         })
 
