@@ -465,5 +465,48 @@ def update_word():
 
     return jsonify({'status': 'success'})
 
+@app.route('/quran')
+def mushaf_view():
+    return render_template('quran.html')
+
+@app.route('/api/page')
+def get_page_data():
+    page_num = request.args.get('page', 1, type=int)
+
+    # 1. Fetch all ayahs belonging to the requested page from your DB
+    # (Adjust column/table names to match your schema)
+    query = """
+        SELECT a.surah, a.ayah, a.full_text, s.name as surah_name, a.juz
+        FROM ayahs a
+        JOIN surahs s ON a.surah = s.id
+        WHERE a.page = ?
+        ORDER BY a.surah ASC, a.ayah ASC
+    """
+    rows = db.execute(query, (page_num,)).fetchall()
+
+    if not rows:
+        return jsonify({"error": "Page not found"}), 404
+
+    # 2. Extract distinct surah names and juz number for the page header
+    surah_names = list(dict.from_keys([row['surah_name'] for row in rows]))
+    juz_num = rows[0]['juz'] if 'juz' in rows[0] else None
+
+    # 3. Format ayahs array dynamically for all 604 pages
+    ayahs_list = []
+    for row in rows:
+        ayahs_list.append({
+            "surah": row['surah'],
+            "ayah": row['ayah'],
+            "full_text": row['full_text'],
+            "surah_name": row['surah_name']
+        })
+
+    return jsonify({
+        "page": page_num,
+        "surahs": surah_names,
+        "juz": juz_num,
+        "ayahs": ayahs_list
+    })
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
