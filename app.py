@@ -466,47 +466,61 @@ def update_word():
     return jsonify({'status': 'success'})
 
 @app.route('/quran')
-def mushaf_view():
+def quran_view():
     return render_template('quran.html')
+
+import traceback
 
 @app.route('/api/page')
 def get_page_data():
-    page_num = request.args.get('page', 1, type=int)
+    try:
+        page_num = request.args.get('page', 1, type=int)
 
-    # 1. Fetch all ayahs belonging to the requested page from your DB
-    # (Adjust column/table names to match your schema)
-    query = """
-        SELECT a.surah, a.ayah, a.full_text, s.name as surah_name, a.juz
-        FROM ayahs a
-        JOIN surahs s ON a.surah = s.id
-        WHERE a.page = ?
-        ORDER BY a.surah ASC, a.ayah ASC
-    """
-    rows = db.execute(query, (page_num,)).fetchall()
+        # Connect to your SQLite database
+        # Adjust 'quran.db' to match your actual database filename
+        import sqlite3
+        conn = sqlite3.connect('quran.db')
+        conn.row_factory = sqlite3.Row  # Enables column access by name
+        cursor = conn.cursor()
 
-    if not rows:
-        return jsonify({"error": "Page not found"}), 404
+        # Execute query joining your ayahs/words and surahs tables
+        query = """
+            SELECT a.surah, a.ayah, a.full_text, s.name as surah_name, a.page
+            FROM ayahs a
+            JOIN surahs s ON a.surah = s.id
+            WHERE a.page = ?
+            ORDER BY a.surah ASC, a.ayah ASC
+        """
+        cursor.execute(query, (page_num,))
+        rows = cursor.fetchall()
+        conn.close()
 
-    # 2. Extract distinct surah names and juz number for the page header
-    surah_names = list(dict.from_keys([row['surah_name'] for row in rows]))
-    juz_num = rows[0]['juz'] if 'juz' in rows[0] else None
+        if not rows:
+            return jsonify({"error": f"No ayahs found for page {page_num}"}), 404
 
-    # 3. Format ayahs array dynamically for all 604 pages
-    ayahs_list = []
-    for row in rows:
-        ayahs_list.append({
-            "surah": row['surah'],
-            "ayah": row['ayah'],
-            "full_text": row['full_text'],
-            "surah_name": row['surah_name']
+        # Dynamically build response
+        surah_names = list(dict.from_keys([row['surah_name'] for row in rows]))
+        ayahs_list = []
+        for row in rows:
+            ayahs_list.append({
+                "surah": row['surah'],
+                "ayah": row['ayah'],
+                "full_text": row['full_text'],
+                "surah_name": row['surah_name']
+            })
+
+        return jsonify({
+            "page": page_num,
+            "surahs": surah_names,
+            "ayahs": ayahs_list
         })
 
-    return jsonify({
-        "page": page_num,
-        "surahs": surah_names,
-        "juz": juz_num,
-        "ayahs": ayahs_list
-    })
+    except Exception as e:
+        # Prints full error stack trace in your Python console/terminal
+        print("\n--- ERROR IN /api/page ---")
+        traceback.print_exc()
+        print("---------------------------\n")
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
