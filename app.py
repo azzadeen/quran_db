@@ -476,18 +476,13 @@ def get_page_data():
     try:
         page_num = request.args.get('page', 1, type=int)
 
-        # Connect to your SQLite database
-        # Adjust 'quran.db' to match your actual database filename
-        import sqlite3
-        conn = sqlite3.connect('quran.db')
-        conn.row_factory = sqlite3.Row  # Enables column access by name
+        conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Execute query joining your ayahs/words and surahs tables
+        # Update this query once page numbers are in quran_corpus.db
         query = """
-            SELECT a.surah, a.ayah, a.full_text, s.name as surah_name, a.page
+            SELECT a.surah, a.ayah, a.full_text, a.page
             FROM ayahs a
-            JOIN surahs s ON a.surah = s.id
             WHERE a.page = ?
             ORDER BY a.surah ASC, a.ayah ASC
         """
@@ -498,15 +493,18 @@ def get_page_data():
         if not rows:
             return jsonify({"error": f"No ayahs found for page {page_num}"}), 404
 
-        # Dynamically build response
-        surah_names = list(dict.from_keys([row['surah_name'] for row in rows]))
         ayahs_list = []
+        surah_names = []
         for row in rows:
+            s_name = SURAH_NAMES.get(row['surah'], f"سورة {row['surah']}")
+            if s_name not in surah_names:
+                surah_names.append(s_name)
+                
             ayahs_list.append({
                 "surah": row['surah'],
                 "ayah": row['ayah'],
                 "full_text": row['full_text'],
-                "surah_name": row['surah_name']
+                "surah_name": s_name
             })
 
         return jsonify({
@@ -516,7 +514,6 @@ def get_page_data():
         })
 
     except Exception as e:
-        # Prints full error stack trace in your Python console/terminal
         print("\n--- ERROR IN /api/page ---")
         traceback.print_exc()
         print("---------------------------\n")
