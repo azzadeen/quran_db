@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>عرض مصحف - اللسان القرآني</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .quran-text { font-family: 'Amiri', 'Traditional Arabic', serif; font-size: 1.35rem; line-height: 2.2; }
+        .page-container { 
+            background: #fffdf6; 
+            border: 1px solid #e2d9cbea; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05); 
+            min-height: 600px;
+            padding: 2rem;
+            border-radius: 8px;
+        }
+        
+        .quran-span-ayah {
+            cursor: pointer;
+            padding: 2px 4px;
+            border-radius: 4px;
+            transition: background-color 0.2s ease;
+        }
+        .quran-span-ayah:hover {
+            background-color: #fef3c7;
+        }
+        .quran-span-ayah.selected-ayah {
+            background-color: #fde68a !important;
+            font-weight: bold;
+        }
+
+        .ayah-badge {
+            font-size: 0.9rem;
+            color: #854d0e;
+            background-color: #fef9c3;
+            border: 1px solid #fef08a;
+            border-radius: 50%;
+            display: inline-block;
+            width: 28px;
+            height: 28px;
+            line-height: 26px;
+            text-align: center;
+            margin: 0 4px;
+            user-select: none;
+        }
+
+        .search-group-rtl .form-select {
+            max-width: 150px;
+            border-top-left-radius: 0 !important;
+            border-bottom-left-radius: 0 !important;
+            border-top-right-radius: 0.5rem !important;
+            border-bottom-right-radius: 0.5rem !important;
+        }
+        .search-group-rtl .form-control { border-radius: 0 !important; }
+        .search-group-rtl .search-btn-rtl {
+            border-top-right-radius: 0 !important;
+            border-bottom-right-radius: 0 !important;
+            border-top-left-radius: 0.5rem !important;
+            border-bottom-left-radius: 0.5rem !important;
+        }
+
+        .search-result-item {
+            cursor: pointer;
+            transition: background-color 0.15s;
+        }
+        .search-result-item:hover {
+            background-color: #f1f5f9;
+        }
+
+        .editable { background-color: #ffffff; cursor: pointer; transition: background-color 0.2s; }
+        .editable:hover, .editable:focus { background-color: #fff3cd !important; outline: none; }
+
+        .topic-tag {
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.2s ease-in-out;
+            font-size: 0.85rem;
+            padding: 0.4em 0.75em;
+        }
+        .topic-tag.active { background-color: #0d6efd !important; color: #fff !important; }
+        .topic-tag.inactive { background-color: #e9ecef !important; color: #495057 !important; border: 1px solid #ced4da; }
+
+        .nav-arrow-btn { min-width: 42px; font-weight: bold; }
+        .note-item { white-space: pre-wrap; word-break: break-word; }
+    </style>
+</head>
+<body class="container py-4">
+
+    <!-- Top Action Bar -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>📖 المصحف الشريف (عرض الصفحة)</h2>
+        <div>
+            <button class="btn btn-primary px-3 me-2" data-bs-toggle="modal" data-bs-target="#searchModal">
+                🔍 فتح البحث
+            </button>
+            <a href="/" class="btn btn-outline-secondary">محلل اللسان ⚙️</a>
+        </div>
+    </div>
+
+    <!-- Page Selector Controls -->
+    <div class="card p-3 mb-4 shadow-sm bg-white">
+        <div class="row g-3 align-items-center justify-content-center">
+            <div class="col-auto">
+                <button class="btn btn-outline-primary fw-bold" onclick="changePage(currentPage + 1)" id="btn-next-page">
+                    ← الصفحة التالية
+                </button>
+            </div>
+            <div class="col-auto d-flex align-items-center">
+                <label for="page-select" class="me-2 fw-bold text-secondary">الصفحة:</label>
+                <select id="page-select" class="form-select fw-bold text-center" style="width: 120px;" onchange="changePage(parseInt(this.value))">
+                    <!-- 1 to 604 Options -->
+                </select>
+                <span class="ms-2 text-muted fw-bold">/ 604</span>
+            </div>
+            <div class="col-auto">
+                <button class="btn btn-outline-primary fw-bold" onclick="changePage(currentPage - 1)" id="btn-prev-page">
+                    الصفحة السابقة →
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Page View Container (Book Style) -->
+    <div class="page-container mb-4">
+        <div id="page-header" class="d-flex justify-content-between border-bottom pb-2 mb-3 text-muted fw-bold">
+            <span id="header-surah-name">سورة...</span>
+            <span id="header-page-num">صفحة -</span>
+            <span id="header-juz-num">الجزء -</span>
+        </div>
+
+        <div id="quran-page-content" class="quran-text text-justify py-2">
+            <div class="text-center py-5"><div class="spinner-border text-primary"></div></div>
+        </div>
+    </div>
+
+    <!-- Ayah Analysis & Metadata Panel -->
+    <div id="selected-ayah-analysis-container" class="mt-4">
+        <div class="alert alert-secondary text-center">
+            💡 انقر على أي آية أعلاه لعرض التفاصيل والملاحظات والروابط الخاصة بها.
+        </div>
+    </div>
+
+    <!-- Search Modal -->
+    <div class="modal fade" id="searchModal" tabindex="-1" aria-labelledby="searchModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold" id="searchModalLabel">🔍 البحث في المصحف</h5>
+                    <button type="button" class="btn-close ms-0 me-auto" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="input-group input-group-lg search-group-rtl mb-3">
+                        <select id="modal-search-column" class="form-select">
+                            <option value="word_text">الكلمة</option>
+                            <option value="source_word">الجذر / المصدر</option>
+                            <option value="meaning">المعنى</option>
+                            <option value="topic">الموضوع</option>
+                            <option value="full_text" selected>نص الآية</option>
+                        </select>
+                        <input type="text" id="modal-search-query" class="form-control" placeholder="أدخل كلمة البحث..." onkeydown="if(event.key === 'Enter') doModalSearch()">
+                        <button class="btn btn-primary px-4 search-btn-rtl" onclick="doModalSearch()">بحث</button>
+                    </div>
+
+                    <div id="modal-search-stats" class="mb-2"></div>
+                    <div id="modal-search-results" class="list-group">
+                        <div class="text-muted text-center py-4">أدخل كلمة البحث واضغط على زر البحث لنتائج المصحف.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let currentPage = 1;
+        let selectedAyahKey = null; // "surah:ayah"
+        let allTopics = [];
+
+        const SURAH_LIST = [
+            { num: 1, name: "الفاتحة", ayahs: 7 }, { num: 2, name: "البقرة", ayahs: 286 },
+            { num: 3, name: "آل عمران", ayahs: 200 }, { num: 4, name: "النساء", ayahs: 176 },
+            { num: 5, name: "المائدة", ayahs: 120 }, { num: 6, name: "الأنعام", ayahs: 165 },
+            { num: 7, name: "الأعراف", ayahs: 206 }, { num: 8, name: "الأنفال", ayahs: 75 },
+            { num: 9, name: "التوبة", ayahs: 129 }, { num: 10, name: "يونس", ayahs: 109 },
+            { num: 11, name: "هود", ayahs: 123 }, { num: 12, name: "يوسف", ayahs: 111 },
+            { num: 13, name: "الرعد", ayahs: 43 }, { num: 14, name: "إبراهيم", ayahs: 52 },
+            { num: 15, name: "الحجر", ayahs: 99 }, { num: 16, name: "النحل", ayahs: 128 },
+            { num: 17, name: "الإسراء", ayahs: 111 }, { num: 18, name: "الكهف", ayahs: 110 },
+            { num: 19, name: "مريم", ayahs: 98 }, { num: 20, name: "طه", ayahs: 135 },
+            { num: 21, name: "الأنبياء", ayahs: 112 }, { num: 22, name: "الحج", ayahs: 78 },
+            { num: 23, name: "المؤمنون", ayahs: 118 }, { num: 24, name: "النور", ayahs: 64 },
+            { num: 25, name: "الفرقان", ayahs: 77 }, { num: 26, name: "الشعراء", ayahs: 227 },
+            { num: 27, name: "النمل", ayahs: 93 }, { num: 28, name: "القصص", ayahs: 88 },
+            { num: 29, name: "العنكبوت", ayahs: 69 }, { num: 30, name: "الروم", ayahs: 60 },
+            { num: 31, name: "لقمان", ayahs: 34 }, { num: 32, name: "السجدة", ayahs: 30 },
+            { num: 33, name: "الأحزاب", ayahs: 73 }, { num: 34, name: "سبأ", ayahs: 54 },
+            { num: 35, name: "فاطر", ayahs: 45 }, { num: 36, name: "يس", ayahs: 83 },
+            { num: 37, name: "الصافات", ayahs: 182 }, { num: 38, name: "ص", ayahs: 88 },
+            { num: 39, name: "الزمر", ayahs: 75 }, { num: 40, name: "غافر", ayahs: 85 },
+            { num: 41, name: "فصلت", ayahs: 54 }, { num: 42, name: "الشورى", ayahs: 53 },
+            { num: 43, name: "الزخرف", ayahs: 89 }, { num: 44, name: "الدخان", ayahs: 59 },
+            { num: 45, name: "الجاثية", ayahs: 37 }, { num: 46, name: "الأحقاف", ayahs: 35 },
+            { num: 47, name: "محمد", ayahs: 38 }, { num: 48, name: "الفتح", ayahs: 29 },
+            { num: 49, name: "الحجرات", ayahs: 18 }, { num: 50, name: "ق", ayahs: 45 },
+            { num: 51, name: "الذاريات", ayahs: 60 }, { num: 52, name: "الطور", ayahs: 49 },
+            { num: 53, name: "النجم", ayahs: 62 }, { num: 54, name: "القمر", ayahs: 55 },
+            { num: 55, name: "الرحمن", ayahs: 78 }, { num: 56, name: "الواقعة", ayahs: 96 },
+            { num: 57, name: "الحديد", ayahs: 29 }, { num: 58, name: "المجادلة", ayahs: 22 },
+            { num: 59, name: "الحشر", ayahs: 24 }, { num: 60, name: "الممتحنة", ayahs: 13 },
+            { num: 61, name: "الصف", ayahs: 14 }, { num: 62, name: "الجمعة", ayahs: 11 },
+            { num: 63, name: "المنافقون", ayahs: 11 }, { num: 64, name: "التغابن", ayahs: 18 },
+            { num: 65, name: "الطلاق", ayahs: 12 }, { num: 66, name: "التحريم", ayahs: 12 },
+            { num: 67, name: "الملك", ayahs: 30 }, { num: 68, name: "القلم", ayahs: 52 },
+            { num: 69, name: "الحاقة", ayahs: 52 }, { num: 70, name: "المعارج", ayahs: 44 },
+            { num: 71, name: "نوح", ayahs: 28 }, { num: 72, name: "الجن", ayahs: 28 },
+            { num: 73, name: "المزمل", ayahs: 20 }, { num: 74, name: "المدثر", ayahs: 56 },
+            { num: 75, name: "القيامة", ayahs: 40 }, { num: 76, name: "الإنسان", ayahs: 31 },
+            { num: 77, name: "المرسلات", ayahs: 50 }, { num: 78, name: "النبأ", ayahs: 40 },
+            { num: 79, name: "النازعات", ayahs: 46 }, { num: 80, name: "عبس", ayahs: 42 },
+            { num: 81, name: "التكوير", ayahs: 29 }, { num: 82, name: "الإنفطار", ayahs: 19 },
+            { num: 83, name: "المطففين", ayahs: 36 }, { num: 84, name: "الإنشقاق", ayahs: 25 },
+            { num: 85, name: "البروج", ayahs: 22 }, { num: 86, name: "الطارق", ayahs: 17 },
+            { num: 87, name: "الأعلى", ayahs: 19 }, { num: 88, name: "الغاشية", ayahs: 26 },
+            { num: 89, name: "الفجر", ayahs: 30 }, { num: 90, name: "البلد", ayahs: 20 },
+            { num: 91, name: "الشمس", ayahs: 15 }, { num: 92, name: "الليل", ayahs: 21 },
+            { num: 93, name: "الضحى", ayahs: 11 }, { num: 94, name: "الشرح", ayahs: 8 },
+            { num: 95, name: "التين", ayahs: 8 }, { num: 96, name: "العلق", ayahs: 19 },
+            { num: 97, name: "القدر", ayahs: 5 }, { num: 98, name: "البينة", ayahs: 8 },
+            { num: 99, name: "الزلزلة", ayahs: 8 }, { num: 100, name: "العاديات", ayahs: 11 },
+            { num: 101, name: "القارعة", ayahs: 11 }, { num: 102, name: "التكاثر", ayahs: 8 },
+            { num: 103, name: "العصر", ayahs: 3 }, { num: 104, name: "الهمزة", ayahs: 9 },
+            { num: 105, name: "الفيل", ayahs: 5 }, { num: 106, name: "قريش", ayahs: 4 },
+            { num: 107, name: "الماعون", ayahs: 7 }, { num: 108, name: "الكوثر", ayahs: 3 },
+            { num: 109, name: "الكافرون", ayahs: 6 }, { num: 110, name: "النصر", ayahs: 3 },
+            { num: 111, name: "المسد", ayahs: 5 }, { num: 112, name: "الإخلاص", ayahs: 4 },
+            { num: 113, name: "الفلق", ayahs: 5 }, { num: 114, name: "الناس", ayahs: 6 }
+        ];
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            initPageDropdown();
+            await loadTopics();
+            await loadPage(1);
+        });
+
+        function initPageDropdown() {
+            const select = document.getElementById('page-select');
+            let opts = '';
+            for (let i = 1; i <= 604; i++) {
+                opts += `<option value="${i}">صفحة ${i}</option>`;
+            }
+            select.innerHTML = opts;
+        }
+
+        async function loadTopics() {
+            const res = await fetch('/api/topics');
+            allTopics = await res.json();
+        }
+
+        async function changePage(pageNum) {
+            if (pageNum < 1 || pageNum > 604) return;
+            currentPage = pageNum;
+            document.getElementById('page-select').value = currentPage;
+            document.getElementById('btn-prev-page').disabled = (currentPage === 1);
+            document.getElementById('btn-next-page').disabled = (currentPage === 604);
+            await loadPage(currentPage);
+        }
+
+        async function loadPage(pageNum) {
+            const container = document.getElementById('quran-page-content');
+            container.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary"></div></div>';
+
+            const res = await fetch(`/api/page?page=${pageNum}`);
+            if(!res.ok) {
+                container.innerHTML = '<div class="alert alert-danger text-center">تعذر تحميل بيانات الصفحة.</div>';
+                return;
+            }
+
+            const data = await res.json(); // { page: N, surahs: [...], ayahs: [{surah, ayah, full_text, surah_name}, ...] }
+            
+            document.getElementById('header-page-num').innerText = `صفحة ${data.page}`;
+            document.getElementById('header-surah-name').innerText = data.surahs ? data.surahs.join(' - ') : '';
+            document.getElementById('header-juz-num').innerText = data.juz ? `الجزء ${data.juz}` : '';
+
+            let contentHtml = '';
+            data.ayahs.forEach(a => {
+                const isSelected = selectedAyahKey === `${a.surah}:${a.ayah}`;
+                const selClass = isSelected ? 'selected-ayah' : '';
+                contentHtml += `
+                    <span class="quran-span-ayah ${selClass}" 
+                          id="span-ayah-${a.surah}-${a.ayah}"
+                          onclick="selectAyah(${a.surah}, ${a.ayah})">
+                        ${a.full_text}
+                        <span class="ayah-badge">${a.ayah}</span>
+                    </span>
+                `;
+            });
+
+            container.innerHTML = contentHtml;
+        }
+
+        async function selectAyah(surah, ayah, autoScroll = false) {
+            selectedAyahKey = `${surah}:${ayah}`;
+            document.querySelectorAll('.quran-span-ayah').forEach(el => el.classList.remove('selected-ayah'));
+
+            const targetSpan = document.getElementById(`span-ayah-${surah}-${ayah}`);
+            if (targetSpan) {
+                targetSpan.classList.add('selected-ayah');
+                if (autoScroll) {
+                    targetSpan.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+
+            const analysisContainer = document.getElementById('selected-ayah-analysis-container');
+            analysisContainer.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary"></div></div>';
+
+            const res = await fetch(`/api/ayah?surah=${surah}&ayah=${ayah}`);
+            if (res.ok) {
+                const data = await res.json();
+                analysisContainer.innerHTML = renderAyahCard(data);
+                analysisContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } else {
+                analysisContainer.innerHTML = '<div class="alert alert-danger text-center">تعذر تحميل تفاصيل الآية.</div>';
+            }
+        }
+
+        async function navigateToAyah(surah, ayah, page) {
+            if (page && page !== currentPage) {
+                await changePage(page);
+            }
+            await selectAyah(surah, ayah, true);
+        }
+
+        // Modal Search Functions
+        async function doModalSearch() {
+            const col = document.getElementById('modal-search-column').value;
+            const q = document.getElementById('modal-search-query').value;
+            if(!q) return;
+
+            const resultsContainer = document.getElementById('modal-search-results');
+            const statsContainer = document.getElementById('modal-search-stats');
+            
+            resultsContainer.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary"></div></div>';
+            statsContainer.innerHTML = '';
+
+            const res = await fetch(`/api/search?column=${col}&query=${encodeURIComponent(q)}`);
+            const data = await res.json();
+
+            if(!data.results || data.results.length === 0) {
+                resultsContainer.innerHTML = '<div class="alert alert-warning text-center m-3">لم يتم العثور على نتائج.</div>';
+                return;
+            }
+
+            statsContainer.innerHTML = `
+                <div class="alert alert-info py-2 mb-2 small fw-bold">
+                    📊 تم العثور على ${data.total_found} نتيجة
+                </div>
+            `;
+
+            resultsContainer.innerHTML = data.results.map(r => `
+                <div class="list-group-item search-result-item p-3 border-bottom" onclick="onSearchResultClick(${r.surah}, ${r.ayah}, ${r.page || 1})">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <strong class="text-primary">${r.surah_name} [${r.surah}:${r.ayah}]</strong>
+                        <span class="badge bg-secondary">صفحة ${r.page || '-'}</span>
+                    </div>
+                    <div class="quran-text text-dark">${r.full_text}</div>
+                </div>
+            `).join('');
+        }
+
+        function onSearchResultClick(surah, ayah, page) {
+            const modalEl = document.getElementById('searchModal');
+            const modalInstance = bootstrap.Modal.getInstance(modalEl);
+            if (modalInstance) {
+                modalInstance.hide();
+            }
+            navigateToAyah(surah, ayah, page);
+        }
+
+        // Complete Ayah Card Render Logic from index.html
+        function renderAyahCard(r) {
+            const topicTags = allTopics.map(t => {
+                const isAssigned = r.assigned_topic_ids.includes(t.id);
+                const statusClass = isAssigned ? 'active' : 'inactive';
+                return `
+                    <span class="badge rounded-pill topic-tag ${statusClass} me-1 mb-1" 
+                          data-topic-id="${t.id}"
+                          onclick="toggleAyahTopic(${r.surah}, ${r.ayah}, ${t.id}, this)">
+                        ${t.name}
+                    </span>
+                `;
+            }).join('');
+
+            const notesList = (r.notes || []).map(n => `
+                <li class="list-group-item d-flex justify-content-between align-items-start bg-white" id="note-item-${n.id}">
+                    <div class="note-item me-2 text-wrap">${n.note_text}</div>
+                    <button class="btn btn-sm btn-outline-danger py-0 px-2 ms-2" onclick="deleteNote(${n.id})">حذف</button>
+                </li>
+            `).join('');
+
+            const customLinksHtml = (r.custom_links || []).map(link => `
+                <div class="p-2 border-bottom bg-white rounded mb-2 d-flex flex-wrap justify-content-between align-items-center" id="custom-link-${link.link_id}">
+                    <div>
+                        <span class="badge bg-dark me-1">${link.linked_surah_name || 'سورة'} [${link.linked_surah}:${link.linked_ayah}]</span>
+                        <span class="quran-text me-2">${link.linked_text}</span>
+                        ${link.link_comment ? `<div class="text-muted small mt-1">💡 <em>${link.link_comment}</em></div>` : ''}
+                    </div>
+                    <button class="btn btn-sm btn-outline-danger py-0 px-2 ms-2" onclick="deleteCustomLink(${link.link_id}, ${r.surah}, ${r.ayah})">حذف الربط</button>
+                </div>
+            `).join('');
+
+            const relatedAyahsHtml = (r.related_ayahs || []).map(rel => {
+                const relTopicBadges = (rel.topics && rel.topics.length > 0) 
+                    ? rel.topics.map(tName => `<span class="badge bg-secondary ms-1">${tName}</span>`).join('')
+                    : '<span class="badge bg-light text-dark ms-1">بدون موضوع</span>';
+
+                return `
+                    <div class="p-2 border-bottom bg-white rounded mb-1 d-flex flex-wrap justify-content-between align-items-center">
+                        <div>
+                            <span class="badge bg-primary me-2">آية ${rel.ayah}</span>
+                            <span class="quran-text">${rel.full_text}</span>
+                        </div>
+                        <div class="mt-1 mt-md-0">${relTopicBadges}</div>
+                    </div>
+                `;
+            }).join('');
+
+            const rows = r.words.map(w => `
+                <tr>
+                    <td class="text-muted small">${w.word_num}</td>
+                    <td class="quran-text fw-bold">${w.word_text}</td>
+                    <td class="editable" contenteditable="true" onblur="updateWordField(${w.id}, 'source_word', this)">${w.source_word || ''}</td>
+                    <td class="editable" contenteditable="true" onblur="updateWordField(${w.id}, 'wazn', this)">${w.wazn || ''}</td>
+                    <td class="editable" contenteditable="true" onblur="updateWordField(${w.id}, 'meaning', this)">${w.meaning || ''}</td>
+                </tr>
+            `).join('');
+
+            const surahOptions = SURAH_LIST.map(s => `<option value="${s.num}">${s.num}. ${s.name}</option>`).join('');
+
+            return `
+                <div class="card mb-3 shadow" id="ayah-card-${r.surah}-${r.ayah}">
+                    <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center py-3">
+                        <div>
+                            <strong class="fs-5 text-warning">${r.surah_name} [${r.surah}:${r.ayah}]</strong>
+                            <span class="quran-text ms-3">${r.full_text}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="card-body">
+                        <!-- Plain Text Row -->
+                        <div class="alert alert-light border mb-3 py-2 text-dark">
+                            <strong class="text-secondary small d-block mb-1">النص المبسط (بدون تشكيل):</strong>
+                            <span class="quran-text">${r.clean_text || '—'} (${r.ayah})</span>
+                        </div>
+
+                        <!-- Navigation Bar & Related Switch -->
+                        <div class="d-flex justify-content-between align-items-center bg-light border rounded p-2 mb-3 flex-wrap">
+                            <button class="btn btn-outline-primary btn-sm nav-arrow-btn" 
+                                    title="الآية السابقة"
+                                    onclick="selectAyah(${r.surah}, ${r.ayah - 1}, true)">
+                                →
+                            </button>
+                            <div class="text-center px-2">
+                                <span class="fw-bold text-secondary small">التصفح: </span>
+                                <span class="quran-text px-2">${r.full_text} (${r.ayah})</span>
+                            </div>
+                            <button class="btn btn-outline-primary btn-sm nav-arrow-btn" 
+                                    title="الآية التالية"
+                                    onclick="selectAyah(${r.surah}, ${r.ayah + 1}, true)">
+                                ←
+                            </button>
+                            <div class="w-100 border-top mt-2 pt-2 d-flex justify-content-center">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="rel-check-${r.surah}-${r.ayah}" 
+                                           ${r.is_related_to_prev ? 'checked' : ''} 
+                                           onchange="toggleRelation(${r.surah}, ${r.ayah}, this.checked)">
+                                    <label class="form-check-label fw-bold text-dark" for="rel-check-${r.surah}-${r.ayah}">
+                                        مرتبطة بالآية السابقة (${r.ayah - 1})
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Topic Tags -->
+                        <div class="mb-3 p-2 bg-light rounded border">
+                            <small class="text-muted d-block mb-2 fw-bold">مواضيع الآية (انقر للربط/الإلغاء):</small>
+                            <div class="d-flex flex-wrap align-items-center">${topicTags}</div>
+                        </div>
+
+                        <!-- Custom Links Section -->
+                        <div class="mb-3 p-3 bg-info-subtle border border-info rounded">
+                            <label class="fw-bold text-dark mb-2 d-block">🔗 الروابط المخصصة (تبادلية):</label>
+                            <div id="custom-links-container-${r.surah}-${r.ayah}">
+                                ${customLinksHtml.length > 0 ? customLinksHtml : '<div class="text-muted small mb-2 no-links-placeholder">لا توجد روابط مخصصة لهذه الآية.</div>'}
+                            </div>
+                            <div class="row g-2 mt-2">
+                                <div class="col-md-3">
+                                    <select class="form-select form-select-sm" id="link-target-surah-${r.surah}-${r.ayah}" onchange="updateTargetAyahDropdown(${r.surah}, ${r.ayah})">
+                                        <option value="">اختر السورة Target</option>
+                                        ${surahOptions}
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <select class="form-select form-select-sm" id="link-target-ayah-${r.surah}-${r.ayah}" disabled onchange="previewTargetAyahText(${r.surah}, ${r.ayah})">
+                                        <option value="">اختر رقم الآية Target</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <input type="text" class="form-control form-control-sm" id="link-comment-${r.surah}-${r.ayah}" placeholder="ملاحظة أو سبب الربط (اختياري)">
+                                </div>
+                                <div class="col-md-2">
+                                    <button class="btn btn-info btn-sm w-100 text-white fw-bold" onclick="addCustomLink(${r.surah}, ${r.ayah})">إضافة رابط</button>
+                                </div>
+                                <div class="col-12">
+                                    <div id="link-preview-text-${r.surah}-${r.ayah}" class="quran-text text-dark mt-1 p-2 bg-white rounded border d-none"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Notes Section -->
+                        <div class="mb-3 p-3 bg-light rounded border">
+                            <label class="fw-bold text-secondary mb-2 d-block">📝 الملاحظات الخاصة بالآية:</label>
+                            <ul class="list-group mb-2" id="notes-list-${r.surah}-${r.ayah}">
+                                ${notesList.length > 0 ? notesList : '<li class="list-group-item text-muted small no-notes-placeholder">لا توجد ملاحظات لهذه الآية بعد.</li>'}
+                            </ul>
+                            <div class="input-group">
+                                <textarea class="form-control" id="note-input-${r.surah}-${r.ayah}" rows="2" placeholder="أضف ملاحظة طويلة أو تعليقًا جديدًا..."></textarea>
+                                <button class="btn btn-success" onclick="addNote(${r.surah}, ${r.ayah})">إضافة ملاحظة</button>
+                            </div>
+                        </div>
+
+                        <!-- Direct Connected Related Ayahs -->
+                        ${(r.related_ayahs && r.related_ayahs.length > 0) ? `
+                            <div class="mb-3 p-3 bg-warning-subtle border border-warning rounded">
+                                <label class="fw-bold text-dark mb-2 d-block">🔗 الآيات المتتابعة المباشرة:</label>
+                                <div>${relatedAyahsHtml}</div>
+                            </div>
+                        ` : ''}
+
+                        <!-- Words Table -->
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered align-middle text-center mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 50px;">#</th>
+                                        <th>الكلمة</th>
+                                        <th>الجذر / المصدر</th>
+                                        <th>الوزن</th>
+                                        <th>المعنى</th>
+                                    </tr>
+                                </thead>
+                                <tbody>${rows}</tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Target Ayah Dropdown & Preview Helpers
+        function updateTargetAyahDropdown(surah, ayah) {
+            const surahSelect = document.getElementById(`link-target-surah-${surah}-${ayah}`);
+            const ayahSelect = document.getElementById(`link-target-ayah-${surah}-${ayah}`);
+            const previewDiv = document.getElementById(`link-preview-text-${surah}-${ayah}`);
+
+            const selectedSurahNum = parseInt(surahSelect.value, 10);
+            previewDiv.classList.add('d-none');
+            previewDiv.innerText = '';
+
+            if (!selectedSurahNum) {
+                ayahSelect.innerHTML = '<option value="">اختر رقم الآية Target</option>';
+                ayahSelect.disabled = true;
+                return;
+            }
+
+            const surahData = SURAH_LIST.find(s => s.num === selectedSurahNum);
+            if (!surahData) return;
+
+            let ayahOptions = '<option value="">اختر رقم الآية Target</option>';
+            for (let i = 1; i <= surahData.ayahs; i++) {
+                ayahOptions += `<option value="${i}">آية ${i}</option>`;
+            }
+
+            ayahSelect.innerHTML = ayahOptions;
+            ayahSelect.disabled = false;
+        }
+
+        async function previewTargetAyahText(surah, ayah) {
+            const targetSurah = document.getElementById(`link-target-surah-${surah}-${ayah}`).value;
+            const targetAyah = document.getElementById(`link-target-ayah-${surah}-${ayah}`).value;
+            const previewDiv = document.getElementById(`link-preview-text-${surah}-${ayah}`);
+
+            if (!targetSurah || !targetAyah) {
+                previewDiv.classList.add('d-none');
+                previewDiv.innerText = '';
+                return;
+            }
+
+            previewDiv.innerHTML = '<span class="spinner-border spinner-border-sm text-secondary"></span> جارٍ تحميل نص الآية...';
+            previewDiv.classList.remove('d-none');
+
+            const res = await fetch(`/api/ayah?surah=${targetSurah}&ayah=${targetAyah}`);
+            if (res.ok) {
+                const data = await res.json();
+                previewDiv.innerHTML = `📖 <strong>${data.surah_name} [${data.surah}:${data.ayah}]:</strong> ${data.full_text}`;
+            } else {
+                previewDiv.innerHTML = '<span class="text-danger small">تعذر تحميل نص الآية المستهدفة.</span>';
+            }
+        }
+
+        // Backend API Interaction Functions
+        async function addCustomLink(surah, ayah) {
+            const rawTargetSurah = document.getElementById(`link-target-surah-${surah}-${ayah}`).value;
+            const rawTargetAyah = document.getElementById(`link-target-ayah-${surah}-${ayah}`).value;
+            const comment = document.getElementById(`link-comment-${surah}-${ayah}`).value.trim();
+
+            if (!rawTargetSurah || !rawTargetAyah) {
+                alert('يرجى إدخال رقم السورة ورقم الآية المستهدفة.');
+                return;
+            }
+
+            const res = await fetch('/api/add_custom_link', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    source_surah: surah,
+                    source_ayah: ayah,
+                    target_surah: parseInt(rawTargetSurah, 10),
+                    target_ayah: parseInt(rawTargetAyah, 10),
+                    link_comment: comment
+                })
+            });
+
+            if (res.ok) {
+                const resData = await res.json();
+                if (resData.data) {
+                    document.getElementById('selected-ayah-analysis-container').innerHTML = renderAyahCard(resData.data);
+                }
+            }
+        }
+
+        async function deleteCustomLink(linkId, currentSurah, currentAyah) {
+            if (!confirm('هل أنت تأكد من حذف هذا الرابط؟')) return;
+
+            const res = await fetch('/api/delete_custom_link', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ link_id: linkId, current_surah: currentSurah, current_ayah: currentAyah })
+            });
+
+            if (res.ok) {
+                const resData = await res.json();
+                if (resData.data) {
+                    document.getElementById('selected-ayah-analysis-container').innerHTML = renderAyahCard(resData.data);
+                }
+            }
+        }
+
+        async function toggleRelation(surah, ayah, isRelated) {
+            const res = await fetch('/api/toggle_ayah_relation', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ surah, ayah, is_related: isRelated })
+            });
+
+            if (res.ok) {
+                const resData = await res.json();
+                document.getElementById('selected-ayah-analysis-container').innerHTML = renderAyahCard(resData.data);
+            }
+        }
+
+        async function addNote(surah, ayah) {
+            const textarea = document.getElementById(`note-input-${surah}-${ayah}`);
+            const text = textarea.value.trim();
+            if (!text) return;
+
+            const res = await fetch('/api/add_ayah_note', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ surah, ayah, note_text: text })
+            });
+
+            if (res.ok) {
+                selectAyah(surah, ayah);
+            }
+        }
+
+        async function deleteNote(noteId) {
+            if (!confirm('هل أنت تأكد من حذف هذه الملاحظة؟')) return;
+
+            const res = await fetch('/api/delete_ayah_note', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ id: noteId })
+            });
+
+            if (res.ok) {
+                const elem = document.getElementById(`note-item-${noteId}`);
+                if (elem) elem.remove();
+            }
+        }
+
+        async function toggleAyahTopic(surah, ayah, topicId, element) {
+            element.classList.toggle('active');
+            element.classList.toggle('inactive');
+
+            const container = document.getElementById('selected-ayah-analysis-container');
+            const activeTags = container.querySelectorAll('.topic-tag.active');
+            const topic_ids = Array.from(activeTags).map(tag => parseInt(tag.getAttribute('data-topic-id')));
+
+            const res = await fetch('/api/update_ayah_topics', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ surah, ayah, topic_ids })
+            });
+
+            if (res.ok) {
+                const resData = await res.json();
+                if (resData.data) {
+                    container.innerHTML = renderAyahCard(resData.data);
+                }
+            }
+        }
+
+        async function updateWordField(id, field, elem) {
+            const value = elem.innerText.trim();
+            await fetch('/api/update_word', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ id, field, value })
+            });
+        }
+    </script>
+</body>
+</html>
