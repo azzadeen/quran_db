@@ -84,6 +84,17 @@
 
         .nav-arrow-btn { min-width: 42px; font-weight: bold; }
         .note-item { white-space: pre-wrap; word-break: break-word; }
+        .surah-header-banner {
+            background-color: #f3eae1;
+            border: 2px solid #c8b29b;
+            border-radius: 6px;
+            padding: 8px 16px;
+            margin: 20px 0 15px 0;
+            text-align: center;
+            font-weight: bold;
+            color: #4a3828;
+            font-size: 1.4rem;
+        }
     </style>
 </head>
 <body class="container py-4">
@@ -287,6 +298,14 @@
             data.ayahs.forEach(a => {
                 const isSelected = selectedAyahKey === `${a.surah}:${a.ayah}`;
                 const selClass = isSelected ? 'selected-ayah' : '';
+                // Insert Surah Banner when a new Surah starts on the page
+                if (a.ayah === 1) {
+                    contentHtml += `
+                        <div class="surah-header-banner">
+                            سُورَةُ ${a.surah_name || ('سورة ' + a.surah)}
+                        </div>
+                    `;
+                }
                 contentHtml += `
                     <span class="quran-span-ayah ${selClass}" 
                           id="span-ayah-${a.surah}-${a.ayah}"
