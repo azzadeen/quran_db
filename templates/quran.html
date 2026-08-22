@@ -311,6 +311,11 @@
             const savedPage = parseInt(localStorage.getItem('lastQuranPage')) || 1;
             document.getElementById('page-input').value = savedPage;
             loadPage(savedPage);
+            if (savedPage && !isNaN(savedPage)) {
+                currentPage = savedPage;
+            } else {
+                currentPage = 1;
+            }
 
         });
 
