@@ -189,26 +189,21 @@
     </div>
 
     <!-- Page Selector Controls -->
-    <div class="card p-3 mb-4 shadow-sm bg-white">
-        <div class="row g-3 align-items-center justify-content-center">
-            <div class="col-auto">
-                <button class="btn btn-outline-primary fw-bold" onclick="changePage(currentPage + 1)" id="btn-next-page">
-                    ← الصفحة التالية
-                </button>
-            </div>
-            <div class="col-auto d-flex align-items-center">
-                <label for="page-select" class="me-2 fw-bold text-secondary">الصفحة:</label>
-                <select id="page-select" class="form-select fw-bold text-center" style="width: 120px;" onchange="changePage(parseInt(this.value))">
-                    <!-- 1 to 604 Options -->
-                </select>
-                <span class="ms-2 text-muted fw-bold">/ 604</span>
-            </div>
-            <div class="col-auto">
-                <button class="btn btn-outline-primary fw-bold" onclick="changePage(currentPage - 1)" id="btn-prev-page">
-                    الصفحة السابقة →
-                </button>
-            </div>
+    <div class="quran-nav-controls">
+        <!-- Right side: Previous Page (goes back towards Page 1) -->
+        <button class="nav-btn" onclick="prevPage()" id="btn-prev">
+            <span class="nav-arrow">&rarr;</span> الصفحة السابقة
+        </button>
+    
+        <!-- Center: Page Indicator -->
+        <div class="page-indicator">
+            <span id="header-page-num">صفحة ١</span>
         </div>
+    
+        <!-- Left side: Next Page (goes forward towards Page 604) -->
+        <button class="nav-btn" onclick="nextPage()" id="btn-next">
+            الصفحة التالية <span class="nav-arrow">&larr;</span>
+        </button>
     </div>
 
     <!-- Page View Container (Book Style) -->
