@@ -24,7 +24,7 @@ SURAH_NAMES = {
 
 # Starting (surah, ayah) for Madani Mushaf pages 1 to 604
 MADANI_PAGE_STARTS = [
-# Pages 1 - 50
+    # Pages 1 - 50
     (1, 1), (2, 1), (2, 6), (2, 17), (2, 25), (2, 30), (2, 38), (2, 49), (2, 58), (2, 62),
     (2, 70), (2, 77), (2, 84), (2, 89), (2, 94), (2, 102), (2, 106), (2, 113), (2, 120), (2, 127),
     (2, 135), (2, 142), (2, 146), (2, 154), (2, 164), (2, 170), (2, 177), (2, 182), (2, 187), (2, 191),
@@ -41,7 +41,7 @@ MADANI_PAGE_STARTS = [
     # Pages 101 - 150
     (4, 141), (4, 148), (4, 155), (4, 163), (4, 171), (4, 176), (5, 3), (5, 6), (5, 10), (5, 14), (5, 18),
     (5, 24), (5, 32), (5, 37), (5, 42), (5, 46), (5, 51), (5, 58), (5, 65), (5, 71), (5, 77),
-    (5, 83), (5, 90), (5, 96), (5, 104), (5, 109), (5,114), (6, 1), (6, 9), (6, 19), (6, 28), (6, 36),
+    (5, 83), (5, 90), (5, 96), (5, 104), (5, 109), (5, 114), (6, 1), (6, 9), (6, 19), (6, 28), (6, 36),
     (6, 45), (6, 53), (6, 60), (6, 69), (6, 74), (6, 82), (6, 91), (6, 95), (6, 102), (6, 111),
     (6, 119), (6, 125), (6, 132), (6, 138), (6, 143), (6, 147), (6, 152), (6, 158), 
 
@@ -54,7 +54,7 @@ MADANI_PAGE_STARTS = [
 
     # Pages 201 - 250
     (9, 87), (9, 94), (9, 100), (9, 107), (9, 112), (9, 118), (9, 123), (10, 1), (10, 7), (10, 15), (10, 21), (10, 26),
-    (10, 34), (10, 43), (10, 54), (10, 62), (10, 71), (10, 79), (10,89), (10, 98), (10, 107), (11, 6),
+    (10, 34), (10, 43), (10, 54), (10, 62), (10, 71), (10, 79), (10, 89), (10, 98), (10, 107), (11, 6),
     (11, 13), (11, 20), (11, 29), (11, 38), (11, 46), (11, 54), (11, 63), (11, 72), (11, 82), (11, 89), (11, 98),
     (11, 109), (11, 118), (12, 5), (12, 15), (12, 23), (12, 31), (12, 38), (12, 44), (12, 53),
     (12, 64), (12, 70), (12, 79), (12, 87), (12, 96), (12, 104), (13, 1), (13, 6),
@@ -100,7 +100,7 @@ MADANI_PAGE_STARTS = [
     # Pages 501 - 550
     (45, 23), (45, 33), (46, 6), (46, 15), (46, 21), (46, 29), (47, 1), (47, 12), (47, 20), (47, 30), (48, 1), (48, 10), (48, 16),
     (48, 24), (48, 29), (49, 5), (49, 12), (50, 1), (50, 16), (50, 36), (51, 7), (51, 31), (51, 52), (52, 15), (52, 32), (53, 1), (53, 27), (53, 45), (54, 7), (54, 28), (54, 50),
-    (55, 17), (55, 41), (55, 78), (56, 17), (56, 51), (56,77), (57, 4), (57, 12), (57, 19), (57, 25), (58, 1), (58, 7), (58, 12), (58, 22), (59, 4), (59, 10),
+    (55, 17), (55, 41), (55, 78), (56, 17), (56, 51), (56, 77), (57, 4), (57, 12), (57, 19), (57, 25), (58, 1), (58, 7), (58, 12), (58, 22), (59, 4), (59, 10),
     (59, 17), (60, 1), (60, 6), (60, 12), (61, 6), (62, 1), (62, 9), (63, 5), (64, 1), (64, 10), (65, 1), (65, 6), (66, 1), (66, 8), (67, 1), (67, 13), (67, 27),
     (68, 16), (68, 43), (69, 9), (69, 35), (70, 11), (70, 40), (71, 11), (72, 1), (72, 14), (73, 1), (73, 20), (74, 18), (74, 48), (75, 20),
     (76, 6), (76, 26), (77, 20), (78, 1), (78, 31), (79, 16), (80, 1), (81, 1), (82, 1), (83, 7), (83, 35), (85, 1),
@@ -109,6 +109,15 @@ MADANI_PAGE_STARTS = [
     (86, 1), (87, 16), (89, 1), (89, 24), (91, 1), (92, 15), (95, 1), 
     (97, 1), (98, 8), (100, 10), (103, 1), (106, 1), (109, 1), (112, 1)
 ]
+
+def get_page_number(surah, ayah):
+    """Calculates 1-based Madani Mushaf page number (1-604) for given (surah, ayah)."""
+    target = (surah, ayah)
+    for i in range(len(MADANI_PAGE_STARTS) - 1, -1, -1):
+        if target >= MADANI_PAGE_STARTS[i]:
+            return i + 1
+    return 1
+
 def remove_diacritics(text):
     if not text:
         return ""
@@ -136,13 +145,11 @@ def get_custom_links_for_ayah(cursor, s, a):
     links = []
 
     for r in rows:
-        # Determine linked target/source relative to current ayah
         if r['source_surah'] == s and r['source_ayah'] == a:
             l_surah, l_ayah = r['target_surah'], r['target_ayah']
         else:
             l_surah, l_ayah = r['source_surah'], r['source_ayah']
 
-        # Fetch text for the linked verse
         words = cursor.execute(
             "SELECT word_text FROM words WHERE surah = ? AND ayah = ? ORDER BY word_num ASC",
             (l_surah, l_ayah)
@@ -155,7 +162,8 @@ def get_custom_links_for_ayah(cursor, s, a):
             'linked_surah_name': SURAH_NAMES.get(l_surah, f"سورة {l_surah}"),
             'linked_ayah': l_ayah,
             'linked_text': linked_text,
-            'link_comment': r['link_comment']
+            'link_comment': r['link_comment'],
+            'page': get_page_number(l_surah, l_ayah)
         })
 
     return links
@@ -203,7 +211,8 @@ def get_related_ayahs_chain(cursor, s, a):
             'ayah': cur_a,
             'full_text': full_text,
             'clean_text': clean_text,
-            'topics': [t['name'] for t in topics]
+            'topics': [t['name'] for t in topics],
+            'page': get_page_number(s, cur_a)
         })
 
     return related
@@ -248,6 +257,7 @@ def get_ayah_details(cursor, s, a):
         'surah': s,
         'surah_name': SURAH_NAMES.get(s, f"سورة {s}"),
         'ayah': a,
+        'page': get_page_number(s, a),
         'full_text': full_ayah,
         'clean_text': clean_text,
         'is_related_to_prev': True if rel_exists else False,
@@ -423,7 +433,6 @@ def add_custom_link():
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # Ensure target verse exists in words DB
     target_exists = cursor.execute('SELECT 1 FROM words WHERE surah = ? AND ayah = ?', (t_surah, t_ayah)).fetchone()
     if not target_exists:
         conn.close()
@@ -436,7 +445,6 @@ def add_custom_link():
 
     conn.commit()
 
-    # Return updated current ayah details for instantaneous UI re-rendering
     updated_details = get_ayah_details(cursor, s_surah, s_ayah)
     conn.close()
 
@@ -457,7 +465,6 @@ def delete_custom_link():
     cursor.execute('DELETE FROM ayah_custom_links WHERE id = ?', (link_id,))
     conn.commit()
 
-    # Return updated current ayah details for instantaneous UI re-rendering
     updated_details = get_ayah_details(cursor, c_surah, c_ayah) if c_surah and c_ayah else None
     conn.close()
 
@@ -569,15 +576,14 @@ def get_page_ayah_bounds(page_num):
         next_s, next_a = MADANI_PAGE_STARTS[page_num]
         if next_a == 1:
             end_s = next_s - 1
-            end_a = 999  # Large upper bound to fetch all ayahs in previous surah
+            end_a = 999
         else:
             end_s = next_s
             end_a = next_a - 1
     else:
-        end_s, end_a = 114, 6  # Last verse of Surah An-Nas
+        end_s, end_a = 114, 6
 
     return (start_s, start_a), (end_s, end_a)
-
 
 @app.route('/api/page')
 def get_page_data():
@@ -591,7 +597,6 @@ def get_page_data():
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Build SQL condition to span cross-surah page boundaries
         if start_s == end_s:
             sql = """
                 SELECT surah, ayah, word_text 
@@ -617,7 +622,6 @@ def get_page_data():
         if not rows:
             return jsonify({"error": f"No words found for page {page_num}"}), 404
 
-        # Group individual word tokens into full verses
         ayahs_dict = {}
         for r in rows:
             key = (r['surah'], r['ayah'])
