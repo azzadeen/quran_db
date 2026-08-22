@@ -309,7 +309,7 @@
         document.addEventListener('DOMContentLoaded', async () => {
             await loadTopics();
             const savedPage = parseInt(localStorage.getItem('lastQuranPage')) || 1;
-            
+            document.getElementById('page-input').value = savedPage;
             loadPage(savedPage);
 
         });
