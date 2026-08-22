@@ -459,7 +459,7 @@
             `).join('');
         }
 
-        function onSearchResultClick(surah, ayah, page) {
+        function onSearchResultClickOld(surah, ayah, page) {
             const modalEl = document.getElementById('searchModal');
             const modalInstance = bootstrap.Modal.getInstance(modalEl);
             if (modalInstance) {
@@ -820,6 +820,29 @@
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ id, field, value })
             });
+        }
+        // Fallback function in JS if server page resolution is missing
+        function getPageFromSurahAyah(surah, ayah) {
+            const target = [surah, ayah];
+            for (let i = MADANI_PAGE_STARTS.length - 1; i >= 0; i--) {
+                const start = MADANI_PAGE_STARTS[i];
+                if (surah > start[0] || (surah === start[0] && ayah >= start[1])) {
+                    return i + 1;
+                }
+            }
+            return 1;
+        }
+        
+        // Ensure search modal results pass calculated fallback page
+        function onSearchResultClick(surah, ayah, page) {
+            const targetPage = page || getPageFromSurahAyah(surah, ayah);
+            
+            const modalEl = document.getElementById('searchModal');
+            const modalInstance = bootstrap.Modal.getInstance(modalEl);
+            if (modalInstance) {
+                modalInstance.hide();
+            }
+            navigateToAyah(surah, ayah, targetPage);
         }
     </script>
 </body>
