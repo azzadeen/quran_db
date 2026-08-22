@@ -95,6 +95,84 @@
             color: #4a3828;
             font-size: 1.4rem;
         }
+        /* Container Frame (Tanzil Style Double Border) */
+        .quran-page-frame {
+            border: 3px double #8c6d3f;
+            outline: 1px solid #c8b29b;
+            outline-offset: 4px;
+            background-color: #fdfbf7;
+            padding: 30px;
+            margin: 20px auto;
+            max-width: 850px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            border-radius: 4px;
+            direction: rtl;
+            text-align: justify;
+            font-family: 'Amiri', 'Traditional Arabic', 'Scheherazade New', serif;
+            line-height: 2.4;
+        }
+        
+        /* Surah Header Banner */
+        .surah-header-banner {
+            border: 2px solid #8c6d3f;
+            outline: 1px solid #8c6d3f;
+            outline-offset: -5px;
+            background: linear-gradient(180deg, #f7f1e5 0%, #e8dcc4 100%);
+            color: #4a3828;
+            text-align: center;
+            font-size: 1.6rem;
+            font-weight: bold;
+            padding: 8px 0;
+            margin: 25px auto 15px auto;
+            width: 90%;
+            border-radius: 2px;
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.1);
+        }
+        
+        /* Basmala Banner (Outside the Surah Header) */
+        .basmala-container {
+            text-align: center;
+            font-size: 1.5rem;
+            color: #3c2a1e;
+            margin: 10px 0 20px 0;
+            font-weight: normal;
+        }
+        
+        /* Text & Ayah Formatting */
+        .quran-span-ayah {
+            font-size: 1.65rem;
+            color: #1a1a1a;
+            cursor: pointer;
+            transition: background 0.2s ease;
+            padding: 2px 0;
+        }
+        
+        .quran-span-ayah:hover {
+            background-color: #f3e5d8;
+        }
+        
+        .selected-ayah {
+            background-color: #e2d1ba !important;
+            border-radius: 4px;
+        }
+        
+        /* Tanzil-style Ayah Badge Numbering */
+        .ayah-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            margin: 0 6px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            color: #8c6d3f;
+            background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><polygon points='50,0 63,13 81,5 85,25 100,38 90,56 97,75 78,81 70,98 50,88 30,98 22,81 3,75 10,56 0,38 15,25 19,5 37,13' fill='none' stroke='%238c6d3f' stroke-width='4'/></svg>");
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            vertical-align: middle;
+        }
     </style>
 </head>
 <body class="container py-4">
@@ -294,7 +372,7 @@
             document.getElementById('header-surah-name').innerText = data.surahs ? data.surahs.join(' - ') : '';
             document.getElementById('header-juz-num').innerText = data.juz ? `الجزء ${data.juz}` : '';
 
-            let contentHtml = '';
+            let contentHtml = '<div class="quran-page-frame">';
             data.ayahs.forEach(a => {
                 const isSelected = selectedAyahKey === `${a.surah}:${a.ayah}`;
                 const selClass = isSelected ? 'selected-ayah' : '';
@@ -305,20 +383,34 @@
                             سُورَةُ ${a.surah_name || ('سورة ' + a.surah)}
                         </div>
                     `;
+                    // Insert Basmala below header for all Surahs except 1 (Fatiha) and 9 (Tawbah)
+                    if (a.surah !== 1 && a.surah !== 9) {
+                        contentHtml += `
+                            <div class="basmala-container">
+                                بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ
+                            </div>
+                        `;
+                    }
                 }
                 contentHtml += `
                     <span class="quran-span-ayah ${selClass}" 
                           id="span-ayah-${a.surah}-${a.ayah}"
                           onclick="selectAyah(${a.surah}, ${a.ayah})">
                         ${a.full_text}
-                        <span class="ayah-badge">${a.ayah}</span>
-                    </span>
+                        <span class="ayah-badge">${convertToArabicNumerals(a.ayah)}</span>
+                        </span>
                 `;
             });
+            contentHtml += '</div>';
 
             container.innerHTML = contentHtml;
         }
-
+        
+        // Convert numbers to Arabic-Indic digits
+        function convertToArabicNumerals(num) {
+            const arabicDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+            return num.toString().split('').map(digit => arabicDigits[digit]).join('');
+        }
         async function selectAyah(surah, ayah, autoScroll = false) {
             selectedAyahKey = `${surah}:${ayah}`;
             document.querySelectorAll('.quran-span-ayah').forEach(el => el.classList.remove('selected-ayah'));
