@@ -31,21 +31,6 @@
             font-weight: bold;
         }
 
-        .ayah-badge {
-            font-size: 0.9rem;
-            color: #854d0e;
-            background-color: #fef9c3;
-            border: 1px solid #fef08a;
-            border-radius: 50%;
-            display: inline-block;
-            width: 28px;
-            height: 28px;
-            line-height: 26px;
-            text-align: center;
-            margin: 0 4px;
-            user-select: none;
-        }
-
         .search-group-rtl .form-select {
             max-width: 150px;
             border-top-left-radius: 0 !important;
@@ -84,17 +69,7 @@
 
         .nav-arrow-btn { min-width: 42px; font-weight: bold; }
         .note-item { white-space: pre-wrap; word-break: break-word; }
-        .surah-header-banner {
-            background-color: #f3eae1;
-            border: 2px solid #c8b29b;
-            border-radius: 6px;
-            padding: 8px 16px;
-            margin: 20px 0 15px 0;
-            text-align: center;
-            font-weight: bold;
-            color: #4a3828;
-            font-size: 1.4rem;
-        }
+        
         /* Container Frame (Tanzil Style Double Border) */
         .quran-page-frame {
             border: 3px double #8c6d3f;
@@ -173,48 +148,6 @@
             background-position: center;
             vertical-align: middle;
         }
-        .quran-nav-controls {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            direction: rtl; /* Enforces Right-to-Left layout */
-            max-width: 850px;
-            margin: 15px auto;
-            padding: 0 10px;
-        }
-        
-        .nav-btn {
-            background-color: #f7f1e5;
-            border: 1px solid #8c6d3f;
-            color: #4a3828;
-            padding: 8px 18px;
-            border-radius: 4px;
-            font-family: 'Amiri', serif;
-            font-size: 1.1rem;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        
-        .nav-btn:hover {
-            background-color: #8c6d3f;
-            color: #ffffff;
-        }
-        
-        .nav-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            background-color: #e0e0e0;
-            border-color: #ccc;
-            color: #888;
-        }
-        
-        .page-indicator {
-            font-family: 'Amiri', serif;
-            font-size: 1.2rem;
-            font-weight: bold;
-            color: #4a3828;
-        }
     </style>
 </head>
 <body class="container py-4">
@@ -230,22 +163,31 @@
         </div>
     </div>
 
-    <!-- Page Selector Controls -->
-    <div class="quran-nav-controls">
-        <!-- Right side: Previous Page (goes back towards Page 1) -->
-        <button class="nav-btn" onclick="prevPage()" id="btn-prev">
-            <span class="nav-arrow">&rarr;</span> الصفحة السابقة
-        </button>
-    
-        <!-- Center: Page Indicator -->
-        <div class="page-indicator">
-            <span id="header-page-num">صفحة ١</span>
+    <!-- Page Selector Controls (Fixed RTL positions & direct input) -->
+    <div class="card p-3 mb-4 shadow-sm bg-white">
+        <div class="row g-3 align-items-center justify-content-center">
+            <!-- Right Side: Previous Page -->
+            <div class="col-auto">
+                <button class="btn btn-outline-primary fw-bold" onclick="changePage(currentPage - 1)" id="btn-prev-page">
+                    الصفحة السابقة →
+                </button>
+            </div>
+            
+            <!-- Center: Page Input Field -->
+            <div class="col-auto d-flex align-items-center">
+                <label for="page-input" class="me-2 fw-bold text-secondary">الصفحة:</label>
+                <input type="number" id="page-input" class="form-control fw-bold text-center me-1" style="width: 85px;" min="1" max="604" value="1" onkeydown="if(event.key === 'Enter') handleManualPageJump()">
+                <span class="text-muted fw-bold me-2">/ 604</span>
+                <button class="btn btn-sm btn-secondary fw-bold" onclick="handleManualPageJump()">انتقال</button>
+            </div>
+
+            <!-- Left Side: Next Page -->
+            <div class="col-auto">
+                <button class="btn btn-outline-primary fw-bold" onclick="changePage(currentPage + 1)" id="btn-next-page">
+                    ← الصفحة التالية
+                </button>
+            </div>
         </div>
-    
-        <!-- Left side: Next Page (goes forward towards Page 604) -->
-        <button class="nav-btn" onclick="nextPage()" id="btn-next">
-            الصفحة التالية <span class="nav-arrow">&larr;</span>
-        </button>
     </div>
 
     <!-- Page View Container (Book Style) -->
@@ -365,29 +307,28 @@
         ];
 
         document.addEventListener('DOMContentLoaded', async () => {
-            initPageDropdown();
             await loadTopics();
             await loadPage(1);
         });
-
-        function initPageDropdown() {
-            const select = document.getElementById('page-select');
-            let opts = '';
-            for (let i = 1; i <= 604; i++) {
-                opts += `<option value="${i}">صفحة ${i}</option>`;
-            }
-            select.innerHTML = opts;
-        }
 
         async function loadTopics() {
             const res = await fetch('/api/topics');
             allTopics = await res.json();
         }
 
+        function handleManualPageJump() {
+            const val = parseInt(document.getElementById('page-input').value, 10);
+            if (!isNaN(val)) {
+                changePage(val);
+            }
+        }
+
         async function changePage(pageNum) {
-            if (pageNum < 1 || pageNum > 604) return;
+            if (pageNum < 1) pageNum = 1;
+            if (pageNum > 604) pageNum = 604;
+            
             currentPage = pageNum;
-            document.getElementById('page-select').value = currentPage;
+            document.getElementById('page-input').value = currentPage;
             document.getElementById('btn-prev-page').disabled = (currentPage === 1);
             document.getElementById('btn-next-page').disabled = (currentPage === 604);
             await loadPage(currentPage);
@@ -435,7 +376,7 @@
                           onclick="selectAyah(${a.surah}, ${a.ayah})">
                         ${a.full_text}
                         <span class="ayah-badge">${convertToArabicNumerals(a.ayah)}</span>
-                        </span>
+                    </span>
                 `;
             });
             contentHtml += '</div>';
@@ -448,6 +389,7 @@
             const arabicDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
             return num.toString().split('').map(digit => arabicDigits[digit]).join('');
         }
+
         async function selectAyah(surah, ayah, autoScroll = false) {
             selectedAyahKey = `${surah}:${ayah}`;
             document.querySelectorAll('.quran-span-ayah').forEach(el => el.classList.remove('selected-ayah'));
@@ -878,27 +820,6 @@
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ id, field, value })
             });
-        }
-        function updatePage(pageNum) {
-            if (pageNum < 1 || pageNum > 604) return;
-            currentPage = pageNum;
-            
-            // Update button states
-            document.getElementById('btn-prev').disabled = (currentPage === 1);
-            document.getElementById('btn-next').disabled = (currentPage === 604);
-            
-            loadPage(currentPage);
-        }
-        function prevPage() {
-            if (currentPage > 1) {
-                updatePage(currentPage - 1);
-            }
-        }
-        
-        function nextPage() {
-            if (currentPage < 604) {
-                updatePage(currentPage + 1);
-            }
         }
     </script>
 </body>
