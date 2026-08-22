@@ -335,6 +335,7 @@
         }
 
         async function loadPage(pageNum) {
+            localStorage.setItem('lastQuranPage', pageNum);
             const container = document.getElementById('quran-page-content');
             container.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary"></div></div>';
 
@@ -844,6 +845,12 @@
             }
             navigateToAyah(surah, ayah, targetPage);
         }
+        document.addEventListener('DOMContentLoaded', () => {
+            // Read saved page from localStorage, default to 1 if none exists
+            const savedPage = parseInt(localStorage.getItem('lastQuranPage')) || 1;
+            
+            loadPage(savedPage);
+        });
     </script>
 </body>
 </html>
