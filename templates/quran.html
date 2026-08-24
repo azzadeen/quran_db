@@ -189,7 +189,28 @@
             </div>
         </div>
     </div>
-
+    <!-- Surah & Ayah Direct Navigation Card -->
+    <div class="card p-3 mb-3 shadow-sm bg-white">
+        <div class="row g-2 align-items-center justify-content-center">
+            <div class="col-md-5 col-12">
+                <label for="nav-surah-select" class="fw-bold text-secondary mb-1">اختر السورة:</label>
+                <select id="nav-surah-select" class="form-select fw-bold" onchange="onNavSurahChange()">
+                    <option value="">-- اختر السورة --</option>
+                </select>
+            </div>
+            <div class="col-md-4 col-12">
+                <label for="nav-ayah-select" class="fw-bold text-secondary mb-1">اختر الآية:</label>
+                <select id="nav-ayah-select" class="form-select fw-bold" disabled>
+                    <option value="">-- اختر رقم الآية --</option>
+                </select>
+            </div>
+            <div class="col-md-3 col-12 d-flex align-items-end">
+                <button class="btn btn-primary fw-bold w-100" style="margin-top: 1.8rem;" onclick="jumpToSelectedSurahAyah()">
+                    الانتقال للآية 🚀
+                </button>
+            </div>
+        </div>
+    </div>
     <!-- Page View Container (Book Style) -->
     <div class="page-container mb-4">
         <div id="page-header" class="d-flex justify-content-between border-bottom pb-2 mb-3 text-muted fw-bold">
@@ -307,6 +328,7 @@
         ];
 
         document.addEventListener('DOMContentLoaded', async () => {
+            initSurahDropdown(); // Initialize Surah dropdown items
             await loadTopics();
             const savedPage = parseInt(localStorage.getItem('lastQuranPage')) || 1;
             document.getElementById('page-input').value = savedPage;
@@ -852,6 +874,74 @@
                 modalInstance.hide();
             }
             navigateToAyah(surah, ayah, targetPage);
+        }
+        // Populate the Surah dropdown menu on startup
+        function initSurahDropdown() {
+            const surahSelect = document.getElementById('nav-surah-select');
+            if (!surahSelect) return;
+            
+            let options = '<option value="">-- اختر السورة --</option>';
+            SURAH_LIST.forEach(s => {
+                options += `<option value="${s.num}">${s.num}. ${s.name} (${s.ayahs} آية)</option>`;
+            });
+            surahSelect.innerHTML = options;
+        }
+        
+        // Dynamically update Ayah options when a Surah is selected
+        function onNavSurahChange() {
+            const surahNum = parseInt(document.getElementById('nav-surah-select').value, 10);
+            const ayahSelect = document.getElementById('nav-ayah-select');
+        
+            if (!surahNum) {
+                ayahSelect.innerHTML = '<option value="">-- اختر رقم الآية --</option>';
+                ayahSelect.disabled = true;
+                return;
+            }
+        
+            const surahData = SURAH_LIST.find(s => s.num === surahNum);
+            if (!surahData) return;
+        
+            let options = '<option value="">-- اختر رقم الآية --</option>';
+            for (let i = 1; i <= surahData.ayahs; i++) {
+                options += `<option value="${i}">الآية ${i}</option>`;
+            }
+        
+            ayahSelect.innerHTML = options;
+            ayahSelect.disabled = false;
+        }
+        
+        // Fetch the target page number for the selected Surah/Ayah and jump to it
+        async function jumpToSelectedSurahAyah() {
+            const surah = parseInt(document.getElementById('nav-surah-select').value, 10);
+            const ayah = parseInt(document.getElementById('nav-ayah-select').value, 10);
+        
+            if (!surah || !ayah) {
+                alert('يرجى اختيار السورة ورقم الآية أولاً.');
+                return;
+            }
+        
+            // Attempt to query backend API for exact page mapping
+            let targetPage = null;
+            try {
+                const res = await fetch(`/api/ayah?surah=${surah}&ayah=${ayah}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    targetPage = data.page;
+                }
+            } catch (e) {
+                console.warn('Backend page resolution failed, calculating fallback page...');
+            }
+        
+            // Fall back to client-side page calculation if API doesn't return page number
+            if (!targetPage && typeof getPageFromSurahAyah === 'function') {
+                targetPage = getPageFromSurahAyah(surah, ayah);
+            }
+        
+            if (targetPage) {
+                await navigateToAyah(surah, ayah, targetPage);
+            } else {
+                alert('تعذر تحديد رقم الصفحة لهذه الآية.');
+            }
         }
     </script>
 </body>
