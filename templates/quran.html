@@ -327,26 +327,29 @@
             { num: 113, name: "الفلق", ayahs: 5 }, { num: 114, name: "الناس", ayahs: 6 }
         ];
 
+
         document.addEventListener('DOMContentLoaded', async () => {
             initSurahDropdown(); // Initialize Surah dropdown items
             await loadTopics();
+        
             const urlParams = new URLSearchParams(window.location.search);
-            const paramPage = parseInt(urlParams.get('page'), 1);
-            const paramSurah = parseInt(urlParams.get('surah'), 1);
-            const paramAyah = parseInt(urlParams.get('ayah'), 1);
+            const paramPage = parseInt(urlParams.get('page'), 10);
+            const paramSurah = parseInt(urlParams.get('surah'), 10);
+            const paramAyah = parseInt(urlParams.get('ayah'), 10);
             let targetPage = 1;
-
+        
             if (paramPage && !isNaN(paramPage)) {
                 targetPage = paramPage;
                 if (paramSurah && paramAyah) {
                     selectedAyahKey = `${paramSurah}:${paramAyah}`;
                 }
             } else {
-                const savedPage = parseInt(localStorage.getItem('lastQuranPage'), 1);
+                const savedPage = parseInt(localStorage.getItem('lastQuranPage'), 10);
                 if (savedPage && !isNaN(savedPage)) {
                     targetPage = savedPage;
                 }
             }
+        
             // Set the global currentPage tracker explicitly
             currentPage = targetPage;
             
@@ -357,10 +360,8 @@
             if (paramSurah && paramAyah) {
                 selectAyah(paramSurah, paramAyah, true);
             }
-            
-
         });
-
+        
         async function loadTopics() {
             const res = await fetch('/api/topics');
             allTopics = await res.json();
@@ -381,9 +382,14 @@
             document.getElementById('page-input').value = currentPage;
             document.getElementById('btn-prev-page').disabled = (currentPage === 1);
             document.getElementById('btn-next-page').disabled = (currentPage === 604);
+        
+            // Update URL query string without reloading the page
+            const newUrl = `${window.location.pathname}?page=${currentPage}`;
+            window.history.replaceState({ path: newUrl }, '', newUrl);
+        
             await loadPage(currentPage);
         }
-
+        
         async function loadPage(pageNum) {
             localStorage.setItem('lastQuranPage', pageNum);
             const container = document.getElementById('quran-page-content');
