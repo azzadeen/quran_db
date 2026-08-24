@@ -332,148 +332,152 @@
         
             // Link pointing to /quran endpoint
             const pageBadgeHtml = r.page 
-                ? `<a href="/quran?page=${r.page}&surah=${r.surah}&ayah=${r.ayah}" 
-                      class="btn btn-sm btn-outline-warning fw-bold me-2 px-2 py-0 text-yellow border-warning"
-                      onclick="event.stopPropagation();" 
-                      title="الانتقال إلى ص ${r.page} في المصحف">
-                      📖 ص ${r.page}
-                   </a>` 
-                : '';
-        
-            return `
-                <div class="card mb-3 shadow-sm" id="ayah-card-${r.surah}-${r.ayah}">
-                    <details class="ayah-details">
-                        <summary class="card-header bg-dark text-yellow d-flex justify-content-between align-items-center py-3">
-                            <div class="d-flex align-items-center flex-wrap">
-                                <span class="toggle-icon text-muted"></span>
-                                <strong class="text-primary fs-5 me-2">${r.surah_name} [${r.surah}:${r.ayah}]</strong>
+                    ? `<a href="/quran?page=${r.page}&surah=${r.surah}&ayah=${r.ayah}" 
+                          class="btn btn-sm btn-outline-warning fw-bold ms-auto px-2 py-0 text-yellow border-warning"
+                          onclick="event.stopPropagation();" 
+                          title="الانتقال إلى ص ${r.page} في المصحف">
+                          📖 ص ${r.page}
+                       </a>` 
+                    : '';
+            
+                return `
+                    <div class="card mb-3 shadow-sm" id="ayah-card-${r.surah}-${r.ayah}">
+                        <details class="ayah-details">
+                            <summary class="card-header bg-dark text-yellow d-flex justify-content-between align-items-center py-3">
+                                <!-- Right Side (RTL Start): Surah Info and Text -->
+                                <div class="d-flex align-items-center flex-wrap me-2">
+                                    <span class="toggle-icon text-muted me-2"></span>
+                                    <strong class="text-primary fs-5 me-2">${r.surah_name} [${r.surah}:${r.ayah}]</strong>
+                                    <span class="quran-text ms-2">${r.full_text}</span>
+                                </div>
+            
+                                <!-- Left Side (RTL End): Page Button -->
                                 ${pageBadgeHtml}
-                                <span class="quran-text ms-2">${r.full_text}</span>
-                            </div>
-                        </summary>
-                        
-                        <div class="card-body">
-                            <!-- Plain Text Row -->
-                            <div class="alert alert-light border mb-3 py-2 text-dark d-flex justify-content-between align-items-center">
-                                <div>
-                                    <strong class="text-secondary small d-block mb-1">النص المبسط (بدون تشكيل):</strong>
-                                    <span class="quran-text">${r.clean_text || '—'} (${r.ayah})</span>
-                                </div>
-                                ${r.page ? `
-                                    <a href="/quran?page=${r.page}&surah=${r.surah}&ayah=${r.ayah}" class="btn btn-sm btn-primary ms-2 fw-bold">
-                                        الانتقال للصفحة ${r.page} 🚀
-                                    </a>
-                                ` : ''}
-                            </div>
-        
-                            <!-- Navigation Bar & Related Switch -->
-                            <div class="d-flex justify-content-between align-items-center bg-light border rounded p-2 mb-3 flex-wrap">
-                                <button class="btn btn-outline-primary btn-sm nav-arrow-btn" 
-                                        title="الآية السابقة"
-                                        onclick="navigateAyah(${r.surah}, ${r.ayah - 1}, ${r.surah}, ${r.ayah})">
-                                    →
-                                </button>
-                                <div class="text-center px-2">
-                                    <span class="fw-bold text-secondary small">التصفح: </span>
-                                    <span class="quran-text px-2">${r.full_text} (${r.ayah})</span>
-                                </div>
-                                <button class="btn btn-outline-primary btn-sm nav-arrow-btn" 
-                                        title="الآية التالية"
-                                        onclick="navigateAyah(${r.surah}, ${r.ayah + 1}, ${r.surah}, ${r.ayah})">
-                                    ←
-                                </button>
-                                <div class="w-100 border-top mt-2 pt-2 d-flex justify-content-center">
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" id="rel-check-${r.surah}-${r.ayah}" 
-                                               ${r.is_related_to_prev ? 'checked' : ''} 
-                                               onchange="toggleRelation(${r.surah}, ${r.ayah}, this.checked)">
-                                        <label class="form-check-label fw-bold text-dark" for="rel-check-${r.surah}-${r.ayah}">
-                                            مرتبطة بالآية السابقة (${r.ayah - 1})
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
-        
-                            <!-- Topic Tags -->
-                            <div class="mb-3 p-2 bg-light rounded border">
-                                <small class="text-muted d-block mb-2 fw-bold">مواضيع الآية (انقر للربط/الإلغاء):</small>
-                                <div class="d-flex flex-wrap align-items-center">
-                                    ${topicTags}
-                                </div>
-                            </div>
-        
-                            <!-- Bi-directional Custom Links Section -->
-                            <div class="mb-3 p-3 bg-info-subtle border border-info rounded">
-                                <label class="fw-bold text-dark mb-2 d-block">🔗 الروابط المخصصة (تبادلية):</label>
-                                <div id="custom-links-container-${r.surah}-${r.ayah}">
-                                    ${customLinksHtml.length > 0 ? customLinksHtml : '<div class="text-muted small mb-2 no-links-placeholder">لا توجد روابط مخصصة لهذه الآية.</div>'}
-                                </div>
-                                <div class="row g-2 mt-2">
-                                    <div class="col-md-3">
-                                        <select class="form-select form-select-sm" id="link-target-surah-${r.surah}-${r.ayah}" onchange="updateTargetAyahDropdown(${r.surah}, ${r.ayah})">
-                                            <option value="">اختر السورة Target</option>
-                                            ${surahOptions}
-                                        </select>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <select class="form-select form-select-sm" id="link-target-ayah-${r.surah}-${r.ayah}" disabled onchange="previewTargetAyahText(${r.surah}, ${r.ayah})">
-                                            <option value="">اختر رقم الآية Target</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <input type="text" class="form-control form-control-sm" id="link-comment-${r.surah}-${r.ayah}" placeholder="ملاحظة أو سبب الربط (اختياري)">
-                                    </div>
-                                    <div class="col-md-2">
-                                        <button class="btn btn-info btn-sm w-100 text-white fw-bold" onclick="addCustomLink(${r.surah}, ${r.ayah})">إضافة رابط</button>
-                                    </div>
-                                    <div class="col-12">
-                                        <div id="link-preview-text-${r.surah}-${r.ayah}" class="quran-text text-dark mt-1 p-2 bg-white rounded border d-none"></div>
-                                    </div>
-                                </div>
-                            </div>
-        
-                            <!-- Multiple Notes Row -->
-                            <div class="mb-3 p-3 bg-light rounded border">
-                                <label class="fw-bold text-secondary mb-2 d-block">📝 الملاحظات الخاصة بالآية:</label>
-                                <ul class="list-group mb-2" id="notes-list-${r.surah}-${r.ayah}">
-                                    ${notesList.length > 0 ? notesList : '<li class="list-group-item text-muted small no-notes-placeholder">لا توجد ملاحظات لهذه الآية بعد.</li>'}
-                                </ul>
-                                <div class="input-group">
-                                    <textarea class="form-control" id="note-input-${r.surah}-${r.ayah}" rows="2" placeholder="أضف ملاحظة طويلة أو تعليقًا جديدًا..."></textarea>
-                                    <button class="btn btn-success" onclick="addNote(${r.surah}, ${r.ayah})">إضافة ملاحظة</button>
-                                </div>
-                            </div>
-        
-                            <!-- Connected Related Ayahs Block -->
-                            ${(r.related_ayahs && r.related_ayahs.length > 0) ? `
-                                <div class="mb-3 p-3 bg-warning-subtle border border-warning rounded">
-                                    <label class="fw-bold text-dark mb-2 d-block">🔗 الآيات المتتابعة المباشرة:</label>
+                            </summary>
+                            
+                            <div class="card-body">
+                
+                                <!-- Plain Text Row -->
+                                <div class="alert alert-light border mb-3 py-2 text-dark d-flex justify-content-between align-items-center">
                                     <div>
-                                        ${relatedAyahsHtml}
+                                        <strong class="text-secondary small d-block mb-1">النص المبسط (بدون تشكيل):</strong>
+                                        <span class="quran-text">${r.clean_text || '—'} (${r.ayah})</span>
+                                    </div>
+                                    ${r.page ? `
+                                        <a href="/quran?page=${r.page}&surah=${r.surah}&ayah=${r.ayah}" class="btn btn-sm btn-primary ms-2 fw-bold">
+                                            الانتقال للصفحة ${r.page} 🚀
+                                        </a>
+                                    ` : ''}
+                                </div>
+            
+                                <!-- Navigation Bar & Related Switch -->
+                                <div class="d-flex justify-content-between align-items-center bg-light border rounded p-2 mb-3 flex-wrap">
+                                    <button class="btn btn-outline-primary btn-sm nav-arrow-btn" 
+                                            title="الآية السابقة"
+                                            onclick="navigateAyah(${r.surah}, ${r.ayah - 1}, ${r.surah}, ${r.ayah})">
+                                        →
+                                    </button>
+                                    <div class="text-center px-2">
+                                        <span class="fw-bold text-secondary small">التصفح: </span>
+                                        <span class="quran-text px-2">${r.full_text} (${r.ayah})</span>
+                                    </div>
+                                    <button class="btn btn-outline-primary btn-sm nav-arrow-btn" 
+                                            title="الآية التالية"
+                                            onclick="navigateAyah(${r.surah}, ${r.ayah + 1}, ${r.surah}, ${r.ayah})">
+                                        ←
+                                    </button>
+                                    <div class="w-100 border-top mt-2 pt-2 d-flex justify-content-center">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="rel-check-${r.surah}-${r.ayah}" 
+                                                   ${r.is_related_to_prev ? 'checked' : ''} 
+                                                   onchange="toggleRelation(${r.surah}, ${r.ayah}, this.checked)">
+                                            <label class="form-check-label fw-bold text-dark" for="rel-check-${r.surah}-${r.ayah}">
+                                                مرتبطة بالآية السابقة (${r.ayah - 1})
+                                            </label>
+                                        </div>
                                     </div>
                                 </div>
-                            ` : ''}
-        
-                            <!-- Words Table -->
-                            <div class="table-responsive">
-                                <table class="table table-sm table-bordered align-middle text-center mb-0">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th style="width: 50px;">#</th>
-                                            <th>الكلمة</th>
-                                            <th>الجذر / المصدر</th>
-                                            <th>الوزن</th>
-                                            <th>المعنى</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        ${rows}
-                                    </tbody>
-                                </table>
+            
+                                <!-- Topic Tags -->
+                                <div class="mb-3 p-2 bg-light rounded border">
+                                    <small class="text-muted d-block mb-2 fw-bold">مواضيع الآية (انقر للربط/الإلغاء):</small>
+                                    <div class="d-flex flex-wrap align-items-center">
+                                        ${topicTags}
+                                    </div>
+                                </div>
+            
+                                <!-- Bi-directional Custom Links Section -->
+                                <div class="mb-3 p-3 bg-info-subtle border border-info rounded">
+                                    <label class="fw-bold text-dark mb-2 d-block">🔗 الروابط المخصصة (تبادلية):</label>
+                                    <div id="custom-links-container-${r.surah}-${r.ayah}">
+                                        ${customLinksHtml.length > 0 ? customLinksHtml : '<div class="text-muted small mb-2 no-links-placeholder">لا توجد روابط مخصصة لهذه الآية.</div>'}
+                                    </div>
+                                    <div class="row g-2 mt-2">
+                                        <div class="col-md-3">
+                                            <select class="form-select form-select-sm" id="link-target-surah-${r.surah}-${r.ayah}" onchange="updateTargetAyahDropdown(${r.surah}, ${r.ayah})">
+                                                <option value="">اختر السورة Target</option>
+                                                ${surahOptions}
+                                            </select>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <select class="form-select form-select-sm" id="link-target-ayah-${r.surah}-${r.ayah}" disabled onchange="previewTargetAyahText(${r.surah}, ${r.ayah})">
+                                                <option value="">اختر رقم الآية Target</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <input type="text" class="form-control form-control-sm" id="link-comment-${r.surah}-${r.ayah}" placeholder="ملاحظة أو سبب الربط (اختياري)">
+                                        </div>
+                                        <div class="col-md-2">
+                                            <button class="btn btn-info btn-sm w-100 text-white fw-bold" onclick="addCustomLink(${r.surah}, ${r.ayah})">إضافة رابط</button>
+                                        </div>
+                                        <div class="col-12">
+                                            <div id="link-preview-text-${r.surah}-${r.ayah}" class="quran-text text-dark mt-1 p-2 bg-white rounded border d-none"></div>
+                                        </div>
+                                    </div>
+                                </div>
+            
+                                <!-- Multiple Notes Row -->
+                                <div class="mb-3 p-3 bg-light rounded border">
+                                    <label class="fw-bold text-secondary mb-2 d-block">📝 الملاحظات الخاصة بالآية:</label>
+                                    <ul class="list-group mb-2" id="notes-list-${r.surah}-${r.ayah}">
+                                        ${notesList.length > 0 ? notesList : '<li class="list-group-item text-muted small no-notes-placeholder">لا توجد ملاحظات لهذه الآية بعد.</li>'}
+                                    </ul>
+                                    <div class="input-group">
+                                        <textarea class="form-control" id="note-input-${r.surah}-${r.ayah}" rows="2" placeholder="أضف ملاحظة طويلة أو تعليقًا جديدًا..."></textarea>
+                                        <button class="btn btn-success" onclick="addNote(${r.surah}, ${r.ayah})">إضافة ملاحظة</button>
+                                    </div>
+                                </div>
+            
+                                <!-- Connected Related Ayahs Block -->
+                                ${(r.related_ayahs && r.related_ayahs.length > 0) ? `
+                                    <div class="mb-3 p-3 bg-warning-subtle border border-warning rounded">
+                                        <label class="fw-bold text-dark mb-2 d-block">🔗 الآيات المتتابعة المباشرة:</label>
+                                        <div>
+                                            ${relatedAyahsHtml}
+                                        </div>
+                                    </div>
+                                ` : ''}
+            
+                                <!-- Words Table -->
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-bordered align-middle text-center mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th style="width: 50px;">#</th>
+                                                <th>الكلمة</th>
+                                                <th>الجذر / المصدر</th>
+                                                <th>الوزن</th>
+                                                <th>المعنى</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${rows}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
-                        </div>
-                    </details>
-                </div>
+                        </details>
+                    </div>
             `;
         }
 
