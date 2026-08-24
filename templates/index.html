@@ -281,15 +281,14 @@
                     </span>
                 `;
             }).join('');
-
+        
             const notesList = (r.notes || []).map(n => `
                 <li class="list-group-item d-flex justify-content-between align-items-start bg-white" id="note-item-${n.id}">
                     <div class="note-item me-2 text-wrap">${n.note_text}</div>
                     <button class="btn btn-sm btn-outline-danger py-0 px-2 ms-2" onclick="deleteNote(${n.id})">حذف</button>
                 </li>
             `).join('');
-
-            // Bi-directional Custom Links rendering
+        
             const customLinksHtml = (r.custom_links || []).map(link => `
                 <div class="p-2 border-bottom bg-white rounded mb-2 d-flex flex-wrap justify-content-between align-items-center" id="custom-link-${link.link_id}">
                     <div>
@@ -300,12 +299,12 @@
                     <button class="btn btn-sm btn-outline-danger py-0 px-2 ms-2" onclick="deleteCustomLink(${link.link_id}, ${r.surah}, ${r.ayah})">حذف الربط</button>
                 </div>
             `).join('');
-
+        
             const relatedAyahsHtml = (r.related_ayahs || []).map(rel => {
                 const relTopicBadges = (rel.topics && rel.topics.length > 0) 
                     ? rel.topics.map(tName => `<span class="badge bg-secondary ms-1">${tName}</span>`).join('')
                     : '<span class="badge bg-light text-dark ms-1">بدون موضوع</span>';
-
+        
                 return `
                     <div class="p-2 border-bottom bg-white rounded mb-1 d-flex flex-wrap justify-content-between align-items-center">
                         <div>
@@ -318,7 +317,7 @@
                     </div>
                 `;
             }).join('');
-
+        
             const rows = r.words.map(w => `
                 <tr>
                     <td class="text-muted small">${w.word_num}</td>
@@ -328,27 +327,45 @@
                     <td class="editable" contenteditable="true" onblur="updateWordField(${w.id}, 'meaning', this)">${w.meaning || ''}</td>
                 </tr>
             `).join('');
-
+        
             const surahOptions = SURAH_LIST.map(s => `<option value="${s.num}">${s.num}. ${s.name}</option>`).join('');
-
+        
+            // Link pointing to /quran endpoint
+            const pageBadgeHtml = r.page 
+                ? `<a href="/quran?page=${r.page}&surah=${r.surah}&ayah=${r.ayah}" 
+                      class="btn btn-sm btn-outline-warning fw-bold me-2 px-2 py-0 text-yellow border-warning"
+                      onclick="event.stopPropagation();" 
+                      title="الانتقال إلى ص ${r.page} في المصحف">
+                      📖 ص ${r.page}
+                   </a>` 
+                : '';
+        
             return `
                 <div class="card mb-3 shadow-sm" id="ayah-card-${r.surah}-${r.ayah}">
                     <details class="ayah-details">
                         <summary class="card-header bg-dark text-yellow d-flex justify-content-between align-items-center py-3">
-                            <div>
+                            <div class="d-flex align-items-center flex-wrap">
                                 <span class="toggle-icon text-muted"></span>
-                                <strong class="text-primary fs-5">${r.surah_name} [${r.surah}:${r.ayah}]</strong>
-                                <span class="quran-text ms-3">${r.full_text}</span>
+                                <strong class="text-primary fs-5 me-2">${r.surah_name} [${r.surah}:${r.ayah}]</strong>
+                                ${pageBadgeHtml}
+                                <span class="quran-text ms-2">${r.full_text}</span>
                             </div>
                         </summary>
                         
                         <div class="card-body">
                             <!-- Plain Text Row -->
-                            <div class="alert alert-light border mb-3 py-2 text-dark">
-                                <strong class="text-secondary small d-block mb-1">النص المبسط (بدون تشكيل):</strong>
-                                <span class="quran-text">${r.clean_text || '—'} (${r.ayah})</span>
+                            <div class="alert alert-light border mb-3 py-2 text-dark d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong class="text-secondary small d-block mb-1">النص المبسط (بدون تشكيل):</strong>
+                                    <span class="quran-text">${r.clean_text || '—'} (${r.ayah})</span>
+                                </div>
+                                ${r.page ? `
+                                    <a href="/quran?page=${r.page}&surah=${r.surah}&ayah=${r.ayah}" class="btn btn-sm btn-primary ms-2 fw-bold">
+                                        الانتقال للصفحة ${r.page} 🚀
+                                    </a>
+                                ` : ''}
                             </div>
-
+        
                             <!-- Navigation Bar & Related Switch -->
                             <div class="d-flex justify-content-between align-items-center bg-light border rounded p-2 mb-3 flex-wrap">
                                 <button class="btn btn-outline-primary btn-sm nav-arrow-btn" 
@@ -376,7 +393,7 @@
                                     </div>
                                 </div>
                             </div>
-
+        
                             <!-- Topic Tags -->
                             <div class="mb-3 p-2 bg-light rounded border">
                                 <small class="text-muted d-block mb-2 fw-bold">مواضيع الآية (انقر للربط/الإلغاء):</small>
@@ -384,7 +401,7 @@
                                     ${topicTags}
                                 </div>
                             </div>
-
+        
                             <!-- Bi-directional Custom Links Section -->
                             <div class="mb-3 p-3 bg-info-subtle border border-info rounded">
                                 <label class="fw-bold text-dark mb-2 d-block">🔗 الروابط المخصصة (تبادلية):</label>
@@ -414,7 +431,7 @@
                                     </div>
                                 </div>
                             </div>
-
+        
                             <!-- Multiple Notes Row -->
                             <div class="mb-3 p-3 bg-light rounded border">
                                 <label class="fw-bold text-secondary mb-2 d-block">📝 الملاحظات الخاصة بالآية:</label>
@@ -426,7 +443,7 @@
                                     <button class="btn btn-success" onclick="addNote(${r.surah}, ${r.ayah})">إضافة ملاحظة</button>
                                 </div>
                             </div>
-
+        
                             <!-- Connected Related Ayahs Block -->
                             ${(r.related_ayahs && r.related_ayahs.length > 0) ? `
                                 <div class="mb-3 p-3 bg-warning-subtle border border-warning rounded">
@@ -436,7 +453,7 @@
                                     </div>
                                 </div>
                             ` : ''}
-
+        
                             <!-- Words Table -->
                             <div class="table-responsive">
                                 <table class="table table-sm table-bordered align-middle text-center mb-0">
