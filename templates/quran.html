@@ -330,14 +330,34 @@
         document.addEventListener('DOMContentLoaded', async () => {
             initSurahDropdown(); // Initialize Surah dropdown items
             await loadTopics();
-            const savedPage = parseInt(localStorage.getItem('lastQuranPage')) || 1;
-            document.getElementById('page-input').value = savedPage;
-            loadPage(savedPage);
-            if (savedPage && !isNaN(savedPage)) {
-                currentPage = savedPage;
+            const urlParams = new URLSearchParams(window.location.search);
+            const paramPage = parseInt(urlParams.get('page'), 1);
+            const paramSurah = parseInt(urlParams.get('surah'), 1);
+            const paramAyah = parseInt(urlParams.get('ayah'), 1);
+            let targetPage = 1;
+
+            if (paramPage && !isNaN(paramPage)) {
+                targetPage = paramPage;
+                if (paramSurah && paramAyah) {
+                    selectedAyahKey = `${paramSurah}:${paramAyah}`;
+                }
             } else {
-                currentPage = 1;
+                const savedPage = parseInt(localStorage.getItem('lastQuranPage'), 1);
+                if (savedPage && !isNaN(savedPage)) {
+                    targetPage = savedPage;
+                }
             }
+            // Set the global currentPage tracker explicitly
+            currentPage = targetPage;
+            
+            document.getElementById('page-input').value = currentPage;
+            await loadPage(currentPage);
+        
+            // Auto-scroll and focus on selected verse
+            if (paramSurah && paramAyah) {
+                selectAyah(paramSurah, paramAyah, true);
+            }
+            
 
         });
 
