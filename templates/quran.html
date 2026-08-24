@@ -381,6 +381,29 @@
             document.getElementById('header-surah-name').innerText = data.surahs ? data.surahs.join(' - ') : '';
             document.getElementById('header-juz-num').innerText = data.juz ? `الجزء ${data.juz}` : '';
 
+            // Synchronize navigation dropdowns based on current state or first Ayah on page
+            if (data.ayahs && data.ayahs.length > 0) {
+                let activeSurah, activeAyah;
+        
+                if (selectedAyahKey) {
+                    const [s, a] = selectedAyahKey.split(':').map(Number);
+                    // Verify if selected Ayah exists on this page
+                    const existsOnPage = data.ayahs.some(item => item.surah === s && item.ayah === a);
+                    if (existsOnPage) {
+                        activeSurah = s;
+                        activeAyah = a;
+                    }
+                }
+        
+                // Default to the first Ayah on the loaded page if none selected or not present on page
+                if (!activeSurah) {
+                    activeSurah = data.ayahs[0].surah;
+                    activeAyah = data.ayahs[0].ayah;
+                }
+        
+                syncNavDropdowns(activeSurah, activeAyah);
+            }
+            
             let contentHtml = '<div class="quran-page-frame">';
             data.ayahs.forEach(a => {
                 const isSelected = selectedAyahKey === `${a.surah}:${a.ayah}`;
@@ -423,6 +446,7 @@
 
         async function selectAyah(surah, ayah, autoScroll = false) {
             selectedAyahKey = `${surah}:${ayah}`;
+            syncNavDropdowns(surah, ayah); // Keep dropdowns in sync when user clicks an Ayah
             document.querySelectorAll('.quran-span-ayah').forEach(el => el.classList.remove('selected-ayah'));
 
             const targetSpan = document.getElementById(`span-ayah-${surah}-${ayah}`);
@@ -941,6 +965,31 @@
                 await navigateToAyah(surah, ayah, targetPage);
             } else {
                 alert('تعذر تحديد رقم الصفحة لهذه الآية.');
+            }
+        }
+
+        // Synchronize the Surah & Ayah dropdowns with specified values
+        function syncNavDropdowns(surah, ayah) {
+            const surahSelect = document.getElementById('nav-surah-select');
+            const ayahSelect = document.getElementById('nav-ayah-select');
+            if (!surahSelect || !ayahSelect) return;
+        
+            // Set selected Surah
+            surahSelect.value = surah;
+        
+            // Repopulate Ayah dropdown for this Surah
+            const surahData = SURAH_LIST.find(s => s.num === surah);
+            if (surahData) {
+                let options = '<option value="">-- اختر رقم الآية --</option>';
+                for (let i = 1; i <= surahData.ayahs; i++) {
+                    options += `<option value="${i}">الآية ${i}</option>`;
+                }
+                ayahSelect.innerHTML = options;
+                ayahSelect.disabled = false;
+                ayahSelect.value = ayah;
+            } else {
+                ayahSelect.innerHTML = '<option value="">-- اختر رقم الآية --</option>';
+                ayahSelect.disabled = true;
             }
         }
     </script>
