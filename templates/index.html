@@ -289,16 +289,31 @@
                 </li>
             `).join('');
         
-            const customLinksHtml = (r.custom_links || []).map(link => `
-                <div class="p-2 border-bottom bg-white rounded mb-2 d-flex flex-wrap justify-content-between align-items-center" id="custom-link-${link.link_id}">
-                    <div>
-                        <span class="badge bg-dark me-1">${link.linked_surah_name || 'سورة'} [${link.linked_surah}:${link.linked_ayah}]</span>
-                        <span class="quran-text me-2">${link.linked_text}</span>
-                        ${link.link_comment ? `<div class="text-muted small mt-1">💡 <em>${link.link_comment}</em></div>` : ''}
+            const customLinksHtml = (r.custom_links || []).map(link => {
+                const linkPageBadge = link.linked_page 
+                    ? `<a href="/quran?page=${link.linked_page}&surah=${link.linked_surah}&ayah=${link.linked_ayah}" 
+                          class="btn btn-sm btn-primary ms-2 fw-bold">
+                          الانتقال للصفحة ${link.linked_page} 🚀
+                       </a>`
+                    : `<a href="/quran?surah=${link.linked_surah}&ayah=${link.linked_ayah}" 
+                          class="btn btn-sm btn-primary ms-2 fw-bold">
+                          الانتقال للآية 🚀
+                       </a>`;
+            
+                return `
+                    <div class="p-2 border-bottom bg-white rounded mb-2 d-flex flex-wrap justify-content-between align-items-center" id="custom-link-${link.link_id}">
+                        <div>
+                            <span class="badge bg-dark me-1">${link.linked_surah_name || 'سورة'} [${link.linked_surah}:${link.linked_ayah}]</span>
+                            <span class="quran-text me-2">${link.linked_text}</span>
+                            ${link.link_comment ? `<div class="text-muted small mt-1">💡 <em>${link.link_comment}</em></div>` : ''}
+                        </div>
+                        <div class="d-flex align-items-center mt-2 mt-md-0">
+                            ${linkPageBadge}
+                            <button class="btn btn-sm btn-outline-danger py-0 px-2 ms-2" onclick="deleteCustomLink(${link.link_id}, ${r.surah}, ${r.ayah})">حذف الربط</button>
+                        </div>
                     </div>
-                    <button class="btn btn-sm btn-outline-danger py-0 px-2 ms-2" onclick="deleteCustomLink(${link.link_id}, ${r.surah}, ${r.ayah})">حذف الربط</button>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         
             const relatedAyahsHtml = (r.related_ayahs || []).map(rel => {
                 const relTopicBadges = (rel.topics && rel.topics.length > 0) 
